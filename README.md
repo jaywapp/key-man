@@ -50,6 +50,19 @@ keyman.exe remove "Sample" --yes
 
 `get`은 값만 표준 출력에 반환합니다. AI 자동화에서는 이를 화면에 출력하지 말고 환경 변수로 직접 받아 사용하세요. 전체 옵션과 안전한 사용 패턴은 [CLI 문서](./docs/cli.md)를 참고합니다.
 
+## Windows 설치 파일
+
+`main` 브랜치에 push하면 GitHub Actions가 Inno Setup 기반 `KeyMan-Setup-<version>.exe`를 자동 생성합니다. Actions 실행 결과의 `KeyMan-Windows-Installer` 아티팩트에서 받을 수 있습니다.
+
+설치 프로그램은 GUI와 CLI를 함께 설치하고 설치 경로를 사용자 PATH에 추가합니다. 새 터미널부터 다음 명령을 어디서든 사용할 수 있습니다.
+
+```powershell
+key-man.exe list
+key-man.exe get "Sample"
+```
+
+설치·제거 동작과 로컬 컴파일 방법은 [설치 파일 문서](./docs/installer.md)를 참고합니다.
+
 ## 데이터 위치
 
 - 민감값: 현재 Windows 사용자의 자격 증명 관리자

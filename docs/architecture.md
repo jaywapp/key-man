@@ -23,6 +23,8 @@
 - `WindowsCredentialStore`: Windows Credential Manager 네이티브 API 경계
 - `MetadataStore`: 비민감 메타데이터 JSON의 원자적 저장
 - `KeyMan.Cli`: `register`, `get`, `copy`, `list`, `remove` 명령 진입점
+- `installer/KeyMan.iss`: GUI·CLI 설치와 사용자 PATH·`KEYMAN_HOME` 관리
+- `.github/workflows/build-installer.yml`: `main` push 시 Windows 설치 파일 빌드·검증·업로드
 
 ## 현재 범위
 
