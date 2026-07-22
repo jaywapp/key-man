@@ -1,5 +1,9 @@
 # KeyMan
 
+> Local Windows credential management for humans, scripts, and AI coding agents.
+
+KeyMan includes a WPF MVVM application, the `key-man.exe` CLI, and a local stdio MCP server named `key-man-mcp.exe`. The MCP integration works with Codex and Claude Code without returning secret values to the model. See [MCP integration](./docs/mcp.md).
+
 개발 과정에서 발급받는 API 키와 토큰을 Windows 로컬에서 관리하는 데스크톱 앱입니다. 민감값은 Windows 자격 증명 관리자에 저장하고, 검색에 필요한 비민감 메타데이터만 로컬 JSON에 보관합니다.
 
 ## 기능

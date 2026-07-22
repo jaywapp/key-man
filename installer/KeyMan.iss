@@ -14,6 +14,10 @@
   #define CliSourceDir "..\artifacts\publish\cli"
 #endif
 
+#ifndef McpSourceDir
+  #define McpSourceDir "..\artifacts\publish\mcp"
+#endif
+
 #ifndef InstallerOutputDir
   #define InstallerOutputDir "..\artifacts\installer"
 #endif
@@ -55,6 +59,7 @@ Name: "desktopicon"; Description: "바탕 화면에 바로가기 만들기"; Gro
 Source: "{#GuiSourceDir}\*"; DestDir: "{app}"; Excludes: "*.pdb"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "{#CliSourceDir}\keyman.exe"; DestDir: "{app}"; DestName: "key-man.exe"; Flags: ignoreversion
 Source: "{#CliSourceDir}\keyman.exe"; DestDir: "{app}"; DestName: "keyman.exe"; Flags: ignoreversion
+Source: "{#McpSourceDir}\key-man-mcp.exe"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\KeyMan"; Filename: "{app}\{#MyAppExeName}"

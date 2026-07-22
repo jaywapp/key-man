@@ -37,6 +37,9 @@ jobs:
       - name: Run storage smoke tests
         run: dotnet run --project .\tests\KeyMan.SmokeTests\KeyMan.SmokeTests.csproj -c Release --no-build
 
+      - name: Run MCP smoke tests
+        run: dotnet run --project .\tests\KeyMan.McpTests\KeyMan.McpTests.csproj -c Release --no-build
+
       - name: Publish WPF application
         run: >-
           dotnet publish .\src\KeyMan\KeyMan.csproj
@@ -58,6 +61,17 @@ jobs:
           -p:IncludeNativeLibrariesForSelfExtract=true
           -p:EnableCompressionInSingleFile=true
           -o .\artifacts\publish\cli
+
+      - name: Publish MCP server
+        run: >-
+          dotnet publish .\src\KeyMan.Mcp\KeyMan.Mcp.csproj
+          -c Release
+          -r win-x64
+          --self-contained true
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:EnableCompressionInSingleFile=true
+          -o .\artifacts\publish\mcp
 
       - name: Install Inno Setup
         shell: powershell
@@ -81,10 +95,11 @@ jobs:
 
           $guiDirectory = Join-Path $env:GITHUB_WORKSPACE 'artifacts\publish\gui'
           $cliDirectory = Join-Path $env:GITHUB_WORKSPACE 'artifacts\publish\cli'
+          $mcpDirectory = Join-Path $env:GITHUB_WORKSPACE 'artifacts\publish\mcp'
           $outputDirectory = Join-Path $env:GITHUB_WORKSPACE 'artifacts\installer'
           New-Item -ItemType Directory -Force -Path $outputDirectory | Out-Null
 
-          & $iscc "/DMyAppVersion=$version" "/DGuiSourceDir=$guiDirectory" "/DCliSourceDir=$cliDirectory" "/DInstallerOutputDir=$outputDirectory" ".\installer\KeyMan.iss"
+          & $iscc "/DMyAppVersion=$version" "/DGuiSourceDir=$guiDirectory" "/DCliSourceDir=$cliDirectory" "/DMcpSourceDir=$mcpDirectory" "/DInstallerOutputDir=$outputDirectory" ".\installer\KeyMan.iss"
           if ($LASTEXITCODE -ne 0) {
             throw "Inno Setup compilation failed with exit code $LASTEXITCODE."
           }
@@ -107,6 +122,18 @@ jobs:
           if ($LASTEXITCODE -ne 0) {
             throw "Installed key-man.exe did not run successfully."
           }
+
+          $mcpExecutable = Join-Path $testDirectory 'key-man-mcp.exe'
+          if (-not (Test-Path -LiteralPath $mcpExecutable)) {
+            throw "Installed key-man-mcp.exe was not found."
+          }
+
+          $env:KEYMAN_MCP_TEST_SERVER = $mcpExecutable
+          dotnet run --project .\tests\KeyMan.McpTests\KeyMan.McpTests.csproj -c Release --no-build
+          if ($LASTEXITCODE -ne 0) {
+            throw "Installed key-man-mcp.exe did not complete the MCP protocol smoke test."
+          }
+          Remove-Item Env:KEYMAN_MCP_TEST_SERVER
 
           $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
           if (($userPath -split ';') -notcontains $testDirectory) {
