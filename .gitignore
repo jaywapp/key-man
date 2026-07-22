@@ -1,0 +1,13 @@
+bin/
+obj/
+.vs/
+*.user
+*.suo
+artifacts/
+
+# Secrets and local vault data
+.env
+.env.*
+vault.json
+*.pfx
+*.pem
