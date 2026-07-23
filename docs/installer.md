@@ -24,7 +24,7 @@
 
 설치 프로그램은 다음 항목을 구성한다.
 
-- `KeyMan.exe`: WPF GUI
+- `KeyMan.Gui.exe`: WPF GUI
 - `key-man.exe`: CLI 기본 명령
 - `keyman.exe`: 기존 CLI 이름과의 호환 별칭
 - 사용자 `PATH`: 설치 경로 추가
