@@ -6,8 +6,12 @@ on:
       - main
   workflow_dispatch:
 
+concurrency:
+  group: key-man-windows-release
+  cancel-in-progress: false
+
 permissions:
-  contents: read
+  contents: write
 
 env:
   DOTNET_NOLOGO: true
@@ -22,6 +26,25 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
+
+      - name: Resolve release version
+        id: version
+        shell: powershell
+        run: |
+          $version = "1.0.${{ github.run_number }}"
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "tag=v$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - name: Validate release tag
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          gh release view $env:RELEASE_TAG --repo $env:GITHUB_REPOSITORY 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            throw "Release $env:RELEASE_TAG already exists."
+          }
 
       - name: Set up .NET
         uses: actions/setup-dotnet@v5
@@ -41,11 +64,15 @@ jobs:
         run: dotnet run --project .\tests\KeyMan.McpTests\KeyMan.McpTests.csproj -c Release --no-build
 
       - name: Publish WPF application
+        env:
+          RELEASE_VERSION: ${{ steps.version.outputs.version }}
+          KEYMAN_FEEDBACK_RELAY_URL: ${{ vars.FEEDBACK_RELAY_URL }}
         run: >-
           dotnet publish .\src\KeyMan\KeyMan.csproj
           -c Release
           -r win-x64
           --self-contained true
+          -p:Version=$env:RELEASE_VERSION
           -p:PublishSingleFile=true
           -p:IncludeNativeLibrariesForSelfExtract=true
           -p:EnableCompressionInSingleFile=true
@@ -79,8 +106,9 @@ jobs:
 
       - name: Compile installer
         shell: powershell
+        env:
+          RELEASE_VERSION: ${{ steps.version.outputs.version }}
         run: |
-          $version = "1.0.${{ github.run_number }}"
           $isccCandidates = @(
             "${env:ProgramFiles(x86)}\Inno Setup 7\ISCC.exe",
             "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
@@ -99,7 +127,7 @@ jobs:
           $outputDirectory = Join-Path $env:GITHUB_WORKSPACE 'artifacts\installer'
           New-Item -ItemType Directory -Force -Path $outputDirectory | Out-Null
 
-          & $iscc "/DMyAppVersion=$version" "/DGuiSourceDir=$guiDirectory" "/DCliSourceDir=$cliDirectory" "/DMcpSourceDir=$mcpDirectory" "/DInstallerOutputDir=$outputDirectory" ".\installer\KeyMan.iss"
+          & $iscc "/DMyAppVersion=$env:RELEASE_VERSION" "/DGuiSourceDir=$guiDirectory" "/DCliSourceDir=$cliDirectory" "/DMcpSourceDir=$mcpDirectory" "/DInstallerOutputDir=$outputDirectory" ".\installer\KeyMan.iss"
           if ($LASTEXITCODE -ne 0) {
             throw "Inno Setup compilation failed with exit code $LASTEXITCODE."
           }
@@ -157,3 +185,17 @@ jobs:
           path: artifacts/installer/KeyMan-Setup-*.exe
           if-no-files-found: error
           retention-days: 30
+
+      - name: Publish GitHub Release
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
+          RELEASE_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          $installers = @(Get-ChildItem -LiteralPath '.\artifacts\installer' -Filter "KeyMan-Setup-$env:RELEASE_VERSION.exe")
+          if ($installers.Count -ne 1 -or $installers[0].Length -eq 0) {
+            throw "Expected non-empty installer was not found."
+          }
+          $installer = $installers[0]
+          gh release create $env:RELEASE_TAG $installer.FullName --target $env:GITHUB_SHA --title "KeyMan $env:RELEASE_VERSION" --generate-notes
