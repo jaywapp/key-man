@@ -123,6 +123,10 @@ jobs:
             throw "Installed key-man.exe did not run successfully."
           }
 
+          if (-not (Test-Path -LiteralPath (Join-Path $testDirectory 'KeyMan.Gui.exe'))) {
+            throw "Installed KeyMan.Gui.exe was not found."
+          }
+
           $mcpExecutable = Join-Path $testDirectory 'key-man-mcp.exe'
           if (-not (Test-Path -LiteralPath $mcpExecutable)) {
             throw "Installed key-man-mcp.exe was not found."

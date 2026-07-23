@@ -1,6 +1,6 @@
 #define MyAppName "KeyMan"
 #define MyAppPublisher "jaywapp"
-#define MyAppExeName "KeyMan.exe"
+#define MyAppExeName "KeyMan.Gui.exe"
 
 #ifndef MyAppVersion
   #define MyAppVersion "0.1.0"
@@ -56,7 +56,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "바탕 화면에 바로가기 만들기"; GroupDescription: "추가 바로가기:"; Flags: unchecked
 
 [Files]
-Source: "{#GuiSourceDir}\*"; DestDir: "{app}"; Excludes: "*.pdb"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#GuiSourceDir}\KeyMan.exe"; DestDir: "{app}"; DestName: "{#MyAppExeName}"; Flags: ignoreversion
 Source: "{#CliSourceDir}\keyman.exe"; DestDir: "{app}"; DestName: "key-man.exe"; Flags: ignoreversion
 Source: "{#CliSourceDir}\keyman.exe"; DestDir: "{app}"; DestName: "keyman.exe"; Flags: ignoreversion
 Source: "{#McpSourceDir}\key-man-mcp.exe"; DestDir: "{app}"; Flags: ignoreversion
