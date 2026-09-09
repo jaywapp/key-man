@@ -31,6 +31,7 @@ public sealed class MetadataStore
 
     public async Task SaveAsync(IEnumerable<CredentialEntry> entries)
     {
+        ArgumentNullException.ThrowIfNull(entries);
         var temporaryPath = _filePath + ".tmp";
         await using (var stream = File.Create(temporaryPath))
         {
