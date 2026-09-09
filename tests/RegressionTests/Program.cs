@@ -20,5 +20,13 @@ try {
     Check.That((await store.LoadAsync()).Count == 0, "JSON null");
     await store.SaveAsync(Array.Empty<CredentialEntry>());
     Check.That((await store.LoadAsync()).Count == 0, "Empty save");
+    await store.SaveAsync(new[] { entry });
+    File.SetAttributes(path, File.GetAttributes(path) | FileAttributes.ReadOnly);
+    try {
+        await Check.ThrowsAsync<UnauthorizedAccessException>(() => store.SaveAsync(Array.Empty<CredentialEntry>()), "Read-only metadata rejects writes");
+        Check.That((await store.LoadAsync()).Single().Id == entry.Id, "Rejected save preserves metadata");
+    } finally { File.SetAttributes(path, FileAttributes.Normal); }
+    File.WriteAllText(path, "");
+    await Check.ThrowsAsync<JsonException>(() => store.LoadAsync(), "Empty file is corruption, not an empty vault");
 } finally { if (Directory.Exists(directory)) Directory.Delete(directory, true); }
 Console.WriteLine($"PASS {Check.Count} metadata regression checks");
