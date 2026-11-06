@@ -16,9 +16,20 @@ public static class ClipboardOwnership
         }
 
         var memory = IntPtr.Zero;
+        var markerMemory = IntPtr.Zero;
+        var marker = Guid.NewGuid().ToByteArray();
+        var markerFormat = RegisterClipboardFormat("KeyMan.ClipboardOwner.v1");
         var opened = false;
         try
         {
+            if (markerFormat == 0) throw new Win32Exception(Marshal.GetLastWin32Error());
+            markerMemory = GlobalAlloc(0x0002, (nuint)marker.Length);
+            if (markerMemory == IntPtr.Zero) throw new Win32Exception(Marshal.GetLastWin32Error());
+            var markerPointer = GlobalLock(markerMemory);
+            if (markerPointer == IntPtr.Zero) throw new Win32Exception(Marshal.GetLastWin32Error());
+            try { Marshal.Copy(marker, 0, markerPointer, marker.Length); }
+            finally { GlobalUnlock(markerMemory); }
+
             var byteCount = checked((value.Length + 1) * sizeof(char));
             memory = GlobalAlloc(0x0002, (nuint)byteCount);
             if (memory == IntPtr.Zero)
@@ -44,24 +55,48 @@ public static class ClipboardOwnership
 
             OpenWithRetry(window);
             opened = true;
-            if (!EmptyClipboard() || SetClipboardData(13, memory) == IntPtr.Zero)
+            if (!EmptyClipboard() || SetClipboardData(markerFormat, markerMemory) == IntPtr.Zero)
             {
                 throw new Win32Exception(Marshal.GetLastWin32Error());
             }
-
+            markerMemory = IntPtr.Zero;
+            if (SetClipboardData(13, memory) == IntPtr.Zero)
+            {
+                throw new Win32Exception(Marshal.GetLastWin32Error());
+            }
             memory = IntPtr.Zero;
-            return GetClipboardSequenceNumber();
         }
         finally
         {
             if (opened) CloseClipboard();
             if (memory != IntPtr.Zero) GlobalFree(memory);
+            if (markerMemory != IntPtr.Zero) GlobalFree(markerMemory);
             DestroyWindow(window);
         }
+
+        // Closing and destroying the owner can advance the sequence. Verify the
+        // per-copy marker under the clipboard lock before capturing the final token.
+        OpenWithRetry(IntPtr.Zero);
+        try
+        {
+            var currentMarker = GetClipboardData(markerFormat);
+            if (currentMarker == IntPtr.Zero || GlobalSize(currentMarker) < (nuint)marker.Length) return 0;
+            var pointer = GlobalLock(currentMarker);
+            if (pointer == IntPtr.Zero) throw new Win32Exception(Marshal.GetLastWin32Error());
+            try
+            {
+                var bytes = new byte[marker.Length];
+                Marshal.Copy(pointer, bytes, 0, bytes.Length);
+                return bytes.AsSpan().SequenceEqual(marker) ? GetClipboardSequenceNumber() : 0;
+            }
+            finally { GlobalUnlock(currentMarker); }
+        }
+        finally { CloseClipboard(); }
     }
 
     public static bool ClearIfOwned(uint sequence)
     {
+        if (sequence == 0) return false;
         OpenWithRetry(IntPtr.Zero);
         try
         {
@@ -118,6 +153,15 @@ public static class ClipboardOwnership
 
     [DllImport("user32.dll", SetLastError = true)]
     private static extern IntPtr SetClipboardData(uint format, IntPtr memory);
+
+    [DllImport("user32.dll", EntryPoint = "RegisterClipboardFormatW", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern uint RegisterClipboardFormat(string name);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetClipboardData(uint format);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern nuint GlobalSize(IntPtr memory);
 
     [DllImport("user32.dll")]
     private static extern uint GetClipboardSequenceNumber();

@@ -32,6 +32,7 @@ internal static class NativeClipboardTests
             desktopChanged = true;
 
             var first = ClipboardOwnership.WriteText("native-fixture-한글");
+            Assert(first != 0 && !ClipboardOwnership.ClearIfOwned(0), "Unclaimed ownership cannot clear a native copy.");
             Assert(ReadFixture() == "native-fixture-한글", "Native write preserves Unicode text.");
             var second = ClipboardOwnership.WriteText("native-fixture-한글");
             Assert(first != second, "A new native copy advances ownership.");
@@ -48,7 +49,7 @@ internal static class NativeClipboardTests
             Assert(ReadFixture() is null, "Normal disposal clears the native clipboard.");
             try { pending.GetAwaiter().GetResult(); }
             catch (OperationCanceledException) { }
-            Console.WriteLine("PASS: 8 native clipboard checks on a private window station (user clipboard untouched)");
+            Console.WriteLine("PASS: 9 native clipboard checks on a private window station (user clipboard untouched)");
         }
         finally
         {
