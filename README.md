@@ -2,17 +2,32 @@
 
 **API 키를 찾을 때마다 `.env`를 뒤지지 않도록.**
 
-KeyMan은 Windows 개발자를 위한 로컬 API 키·토큰 보관함입니다. GUI에서 서비스와 환경별로 정리하고, CLI에서 스크립트에 연결하고, MCP로 AI 코딩 도구에서 목록 조회·등록·복사를 요청할 수 있습니다. 실제 값은 Windows 자격 증명 관리자에 저장합니다.
+여러 프로젝트에 흩어진 개발용 키를 한곳에서 찾고 사용하세요. KeyMan은 **Windows 개발자를 위한 로컬 API 키·토큰 보관함**입니다. 실제 값은 Windows 자격 증명 관리자에 저장합니다.
+
+| GUI로 정리 | CLI로 연결 | MCP로 요청 |
+|---|---|---|
+| 서비스·환경별 검색, 만료일 확인, 값 숨김 복사 | 숨김 입력·stdin 등록, 스크립트에서 사용 | Claude Code·Codex에서 목록·등록·복사 요청 |
 
 > **[v1.1.0-alpha.1](https://github.com/jaywapp/key-man/releases/tag/v1.1.0-alpha.1) 알파** — Clear Desk 화면과 저장 안정성 개선을 담았습니다. Windows x64용 개발·평가 버전이며 설치 파일은 코드 서명되지 않았습니다.
 
 [Windows 설치 파일 다운로드](https://github.com/jaywapp/key-man/releases/download/v1.1.0-alpha.1/KeyMan-Setup-1.1.0-alpha.1.exe) · [SHA-256 체크섬](https://github.com/jaywapp/key-man/releases/download/v1.1.0-alpha.1/KeyMan-Setup-1.1.0-alpha.1.exe.sha256) · [릴리스 안내](https://github.com/jaywapp/key-man/releases/tag/v1.1.0-alpha.1)
+
+**바로 사용:** Windows x64 설치 파일에는 런타임이 포함됩니다. **직접 개발:** Windows와 .NET 10 SDK로 [소스에서 실행](#소스에서-실행)하세요.
 
 현재 저장소는 비공개입니다. 위 링크와 다운로드에는 저장소 접근 권한이 있는 GitHub 계정이 필요합니다.
 
 ![가짜 데이터로 렌더링한 KeyMan 앱 화면](docs/assets/keyman-demo.png)
 
 현재 앱의 XAML을 가짜 데이터로 렌더링한 화면입니다. 실제 사용자 키는 포함하지 않습니다.
+
+<details>
+<summary>26초 데모: 등록 → 검색 → 복사 → CLI·MCP 목록</summary>
+
+![가짜 데이터로 등록 폼을 채우고 검색·복사 상태와 CLI·MCP 목록 예시를 보여주는 KeyMan 화면 재현](docs/assets/demo/keyman-demo.gif)
+
+운영 XAML과 가짜 모델로 만든 화면 재현입니다. 실제 자격 증명 저장·클립보드 복사를 촬영한 영상은 아닙니다. CLI·MCP 목록은 별도 fixture의 실제 응답을 사용합니다. [정사각 MP4](docs/assets/demo/keyman-threads-square.mp4) · [정적 이미지](docs/assets/demo/keyman-demo-poster.png) · [데모 범위와 재생성](docs/demo.md)
+
+</details>
 
 ## 이런 흐름에 맞습니다
 
@@ -78,6 +93,8 @@ dotnet run --project .\src\KeyMan.Cli\KeyMan.Cli.csproj -- --help
 - [CLI 사용법](docs/cli.md) · [MCP 연결](docs/mcp.md) · [아키텍처](docs/architecture.md)
 - [기여 안내](CONTRIBUTING.md) · [보안 정책](SECURITY.md) · [문서 목록](docs/README.md)
 
-알파 피드백에는 사용한 버전, Windows 버전, 실행 경로(GUI/CLI/MCP), 재현 과정을 적어 주세요. 실제 키·토큰·`.env`·개인 보관함 파일은 첨부하지 마세요.
+알파 피드백은 [GitHub 이슈](https://github.com/jaywapp/key-man/issues/new/choose)에 남겨 주세요. 사용한 버전, Windows 버전, 실행 경로(GUI/CLI/MCP), 재현 과정을 적고 실제 키·토큰·`.env`·개인 보관함 파일은 첨부하지 마세요. 보안 문제는 공개 이슈 대신 [보안 정책](SECURITY.md)을 따릅니다.
+
+2026-11-06 기준 자동 테스트·설치 검증을 통과했습니다. [검증 환경·결과·미검증 범위](docs/verification.md)에서 실제 CI 근거를 확인할 수 있습니다.
 
 KeyMan은 [MIT 라이선스](LICENSE)를 따릅니다. 설치 폴더의 `LICENSE.txt`에 원문을 포함하며, 외부 구성요소의 라이선스·고지는 `ThirdPartyNotices`에 있습니다.

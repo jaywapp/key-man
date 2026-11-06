@@ -11,8 +11,13 @@
 - [보안 정책](../SECURITY.md) · [기여 안내](../CONTRIBUTING.md)
 - [Threads 게시 초안·데모·공개 전 점검](threads-launch.md)
 - [공개 알파 릴리스 안내 원고](alpha-release-notes.md)
+- [검증 환경·결과·미검증 범위](verification.md)
+- [가짜 데이터 데모와 재생성](demo.md)
+- [공개 전 보안 점검 결과](launch-security-review.md)
 
 ## 작업 기록
+
+- 공개 준비 이슈 #10~#16: [분석](launch-issues-analysis.md), [설계](launch-issues-design.md), [작업](launch-issues-tasks.md)
 
 - WPF 화면 다듬기: [분석](wpf-polish-analysis.md), [설계](wpf-polish-design.md), [작업](wpf-polish-tasks.md)
 

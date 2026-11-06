@@ -12,6 +12,8 @@ WPF 화면은 밝은 Clear Desk 스타일로 정리했습니다. 이름과 메�
 - 기본 경로는 `%LOCALAPPDATA%\Programs\KeyMan`입니다. PATH 추가를 선택했다면 새 터미널에서 `key-man.exe --help`를 실행할 수 있습니다.
 - KeyMan은 MIT 라이선스를 따릅니다. 설치 폴더의 `LICENSE.txt`에 원문, `ThirdPartyNotices`에 외부 구성요소의 라이선스·고지문이 있습니다.
 
+업데이트할 때는 GUI와 MCP 클라이언트를 정상 종료하고 새 설치 파일을 같은 경로에 설치하세요. 자동 업데이트는 없습니다. Windows의 설치된 앱에서 제거할 수 있으며, 설치 프로그램이 추가한 PATH·KEYMAN_HOME은 제거하지만 사용자 키와 메타데이터는 보존합니다. 자세한 절차는 [설치·업데이트·제거 안내](https://github.com/jaywapp/key-man/blob/main/docs/installer.md)를 참고하세요.
+
 ## 알파의 범위와 제한
 
 - 개발·평가용 알파입니다. 가짜 값으로 먼저 설치와 사용 흐름을 확인해 주세요.

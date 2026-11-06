@@ -1,0 +1,114 @@
+{
+  "method": "Production XAML rendering with in-memory GUI fixtures; not a desktop recording.",
+  "gui": "Registration and copy are simulated. No Windows credentials or system clipboard are accessed.",
+  "cliCommand": "key-man.exe list OpenAI --json",
+  "cliResponse": [
+    {
+      "Name": "OpenAI API Key",
+      "Service": "OpenAI",
+      "Environment": "Development",
+      "ExpiresOn": null
+    }
+  ],
+  "mcpTool": "keyman_list",
+  "mcpArguments": {
+    "query": "OpenAI"
+  },
+  "mcpTextResponse": "[{\u0022name\u0022:\u0022OpenAI API Key\u0022,\u0022service\u0022:\u0022OpenAI\u0022,\u0022environment\u0022:\u0022Development\u0022}]",
+  "sourceHashes": [
+    {
+      "path": "src/KeyMan/App.xaml",
+      "sha256": "8ada858d3f9172f4507791f8f9e530a912a59937e4b16bc34fb7b0bac54a2c0f"
+    },
+    {
+      "path": "src/KeyMan/MainWindow.xaml",
+      "sha256": "0c16ef50fddac51e2b56ffc7a89f0ee31bbb40e44dcb0243063a7cf14ad011a0"
+    },
+    {
+      "path": "src/KeyMan/AddCredentialWindow.xaml",
+      "sha256": "72af3f98861c2a9956bf435fa9b252e37d2e161dcc6edaa5ec46c402f1bda4c6"
+    }
+  ],
+  "frames": 104,
+  "framesPerSecond": 4,
+  "durationSeconds": 26,
+  "scenes": [
+    {
+      "startSeconds": 0,
+      "durationSeconds": 3,
+      "title": "\uB4F1\uB85D \u2192 \uAC80\uC0C9 \u2192 \uBCF5\uC0AC",
+      "caption": "Windows \uB85C\uCEEC API \uD0A4 \uBCF4\uAD00\uD568\uC758 \uC0AC\uC6A9 \uD750\uB984",
+      "highlight": "AddButton"
+    },
+    {
+      "startSeconds": 3,
+      "durationSeconds": 1.5,
+      "title": "1. \uD0A4 \uB4F1\uB85D",
+      "caption": "\uC785\uB825 \uD654\uBA74\uB3C4 \uD604\uC7AC \uC571\uC758 XAML\uC744 \uC0AC\uC6A9\uD569\uB2C8\uB2E4.",
+      "highlight": "NameTextBox"
+    },
+    {
+      "startSeconds": 4.5,
+      "durationSeconds": 1.5,
+      "title": "1. \uD0A4 \uB4F1\uB85D",
+      "caption": "\uC774\uB984\u00B7\uC11C\uBE44\uC2A4\u00B7\uD658\uACBD\uC73C\uB85C \uD0A4\uB97C \uAD6C\uBD84\uD569\uB2C8\uB2E4.",
+      "highlight": "ServiceTextBox"
+    },
+    {
+      "startSeconds": 6,
+      "durationSeconds": 3,
+      "title": "1. \uD0A4 \uB4F1\uB85D",
+      "caption": "\uAC00\uC9DC \uC785\uB825\uAC12\uC73C\uB85C \uB4F1\uB85D \uD654\uBA74\uC744 \uC7AC\uD604\uD569\uB2C8\uB2E4.",
+      "highlight": "SaveButton"
+    },
+    {
+      "startSeconds": 9,
+      "durationSeconds": 3,
+      "title": "\uB4F1\uB85D\uD55C \uD0A4\uAC00 \uBAA9\uB85D\uC5D0",
+      "caption": "\uB4F1\uB85D\uC740 \uBA54\uBAA8\uB9AC\uC5D0\uC11C\uB9CC \uC7AC\uD604\uD569\uB2C8\uB2E4. \uC2E4\uC81C \uBCF4\uAD00\uD568\uC740 \uC0AC\uC6A9\uD558\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4.",
+      "highlight": null
+    },
+    {
+      "startSeconds": 12,
+      "durationSeconds": 0.5,
+      "title": "2. \uD0A4 \uAC80\uC0C9",
+      "caption": "\uC774\uB984\u00B7\uC11C\uBE44\uC2A4\u00B7\uD658\uACBD\uC73C\uB85C \uD544\uC694\uD55C \uD56D\uBAA9\uC744 \uCC3E\uC2B5\uB2C8\uB2E4.",
+      "highlight": "SearchTextBox"
+    },
+    {
+      "startSeconds": 12.5,
+      "durationSeconds": 1,
+      "title": "2. \uD0A4 \uAC80\uC0C9",
+      "caption": "\uC774\uB984\u00B7\uC11C\uBE44\uC2A4\u00B7\uD658\uACBD\uC73C\uB85C \uD544\uC694\uD55C \uD56D\uBAA9\uC744 \uCC3E\uC2B5\uB2C8\uB2E4.",
+      "highlight": "SearchTextBox"
+    },
+    {
+      "startSeconds": 13.5,
+      "durationSeconds": 1.5,
+      "title": "2. \uD0A4 \uAC80\uC0C9",
+      "caption": "\uC774\uB984\u00B7\uC11C\uBE44\uC2A4\u00B7\uD658\uACBD\uC73C\uB85C \uD544\uC694\uD55C \uD56D\uBAA9\uC744 \uCC3E\uC2B5\uB2C8\uB2E4.",
+      "highlight": "SearchTextBox"
+    },
+    {
+      "startSeconds": 15,
+      "durationSeconds": 3,
+      "title": "3. \uAC12 \uBCF5\uC0AC",
+      "caption": "\uD56D\uBAA9\uC744 \uC120\uD0DD\uD55C \uB4A4 \uAC12 \uBCF5\uC0AC\uB97C \uB204\uB985\uB2C8\uB2E4.",
+      "highlight": "CopyButton"
+    },
+    {
+      "startSeconds": 18,
+      "durationSeconds": 4,
+      "title": "3. \uAC12 \uBCF5\uC0AC",
+      "caption": "\uB370\uBAA8: \uC2E4\uC81C \uD074\uB9BD\uBCF4\uB4DC \uBBF8\uC0AC\uC6A9 \u00B7 30\uCD08 \uC815\uB9AC\uB294 \uC2DC\uC5F0\uD558\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4.",
+      "highlight": "StatusLabel"
+    },
+    {
+      "startSeconds": 22,
+      "durationSeconds": 4,
+      "title": "CLI\u00B7MCP\uC5D0\uC11C\uB3C4 \uAC19\uC740 \uBA54\uD0C0\uB370\uC774\uD130",
+      "caption": "\uBCC4\uB3C4 fixture JSON\uC5D0 \uB300\uD55C \uC2E4\uC81C \uBAA9\uB85D \uC751\uB2F5 \uC608\uC2DC\uC785\uB2C8\uB2E4.",
+      "highlight": null
+    }
+  ]
+}
