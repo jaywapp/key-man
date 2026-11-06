@@ -34,6 +34,12 @@ jobs:
           global-json-file: global.json
       - name: Build and run all checks
         run: .\tools\Test-KeyMan.ps1
+      - name: Verify isolated demo rendering and metadata examples
+        run: |
+          dotnet build .\tools\KeyMan.Demo\KeyMan.Demo.csproj -c Release --nologo
+          if ($LASTEXITCODE -ne 0) { throw 'Demo build failed.' }
+          dotnet run --project .\tools\KeyMan.Demo\KeyMan.Demo.csproj -c Release --no-build -- $env:GITHUB_WORKSPACE .\artifacts\demo\frames .\artifacts\demo\media
+          if ($LASTEXITCODE -ne 0) { throw 'Isolated demo rendering failed.' }
       - name: Prepare verified portable Inno Setup
         run: .\tools\Get-InnoCompiler.ps1
       - name: Package verification build

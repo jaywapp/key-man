@@ -1,0 +1,44 @@
+[
+  {
+    "file": "keyman-threads-square.mp4",
+    "inspection": {
+      "programs": [],
+      "stream_groups": [],
+      "streams": [
+        {
+          "codec_name": "h264",
+          "width": 1080,
+          "height": 1080,
+          "pix_fmt": "yuv420p",
+          "r_frame_rate": "30/1",
+          "nb_frames": "780"
+        }
+      ],
+      "format": {
+        "duration": "26.000000",
+        "size": "280913"
+      }
+    }
+  },
+  {
+    "file": "keyman-demo.gif",
+    "inspection": {
+      "programs": [],
+      "stream_groups": [],
+      "streams": [
+        {
+          "codec_name": "gif",
+          "width": 900,
+          "height": 900,
+          "pix_fmt": "bgra",
+          "r_frame_rate": "4/1",
+          "nb_frames": "104"
+        }
+      ],
+      "format": {
+        "duration": "26.000000",
+        "size": "242029"
+      }
+    }
+  }
+]
