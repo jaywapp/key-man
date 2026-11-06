@@ -1,5 +1,7 @@
 # KeyMan
 
+[![Windows 검증](https://github.com/jaywapp/key-man/actions/workflows/verify-windows.yml/badge.svg?branch=main)](https://github.com/jaywapp/key-man/actions/workflows/verify-windows.yml)
+
 **API 키를 찾을 때마다 `.env`를 뒤지지 않도록.**
 
 여러 프로젝트에 흩어진 개발용 키를 한곳에서 찾고 사용하세요. KeyMan은 **Windows 개발자를 위한 로컬 API 키·토큰 보관함**입니다. 실제 값은 Windows 자격 증명 관리자에 저장합니다.
@@ -14,7 +16,7 @@
 
 **바로 사용:** Windows x64 설치 파일에는 런타임이 포함됩니다. **직접 개발:** Windows와 .NET 10 SDK로 [소스에서 실행](#소스에서-실행)하세요.
 
-현재 저장소는 비공개입니다. 위 링크와 다운로드에는 저장소 접근 권한이 있는 GitHub 계정이 필요합니다.
+소스와 설치 파일은 로그인 없이 볼 수 있습니다. 피드백 이슈와 비공개 보안 제보에는 GitHub 로그인이 필요합니다.
 
 ![가짜 데이터로 렌더링한 KeyMan 앱 화면](docs/assets/keyman-demo.png)
 

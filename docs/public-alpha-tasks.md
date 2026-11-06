@@ -2,6 +2,8 @@
 
 orchestrator: Codex
 
+후속 상태(2026-11-06): PR #8/#9/#17 병합과 alpha1 발행을 마친 뒤 사용자 승인으로 저장소를 Public으로 전환했다. 비공개 취약점 제보 활성화와 익명 다운로드·체크섬도 확인했다. 아래는 각 준비 단계의 기록이며 현재 남은 Threads 앱 미리보기 항목은 [공개 준비 이슈 작업](launch-issues-tasks.md)을 따른다.
+
 사용자가 승인한 검토 제안을 구현한다. 담당별 파일 소유권을 분리해 병렬 진행하며 통합 검증은 모든 변경 후 순차 수행한다.
 
 | 작업 | owner | model | effort | depends_on | parallel_group | files | verification | status |
