@@ -2,16 +2,18 @@
 
 ## 배포 상태
 
-현재는 공개 알파 준비 단계다. 다음 알파 후보 버전은 `1.1.0-alpha.1`이며 아직 발행되지 않았다. [릴리스 목록·공개 상태 확인](https://github.com/jaywapp/key-man/releases)에서 실제 배포 여부를 확인한다. 기존 릴리스가 보이더라도 이번 소스의 수정 사항이 포함되었다고 가정하지 않는다.
+[v1.1.0-alpha.1](https://github.com/jaywapp/key-man/releases/tag/v1.1.0-alpha.1)을 prerelease로 발행했다. [Windows x64 설치 파일](https://github.com/jaywapp/key-man/releases/download/v1.1.0-alpha.1/KeyMan-Setup-1.1.0-alpha.1.exe)과 [SHA-256 체크섬](https://github.com/jaywapp/key-man/releases/download/v1.1.0-alpha.1/KeyMan-Setup-1.1.0-alpha.1.exe.sha256)을 함께 받는다. 안정판으로 지정하지 않았으므로 `releases/latest` 대신 이 버전 링크를 사용한다.
 
 ## 요구 환경과 파일 확인
+
+현재 저장소와 릴리스는 비공개다. 저장소 접근 권한이 있는 GitHub 계정으로 로그인해야 다운로드할 수 있다.
 
 - 설치 패키지 대상은 Windows x64다. ARM64 네이티브 패키지는 제공하지 않는다.
 - GUI·CLI·MCP 실행 파일은 .NET 10.0.14 런타임을 포함하므로 별도 SDK 없이 실행하도록 패키징한다. 배포 런타임 패치는 `Build-Installer.ps1`에서 관리한다.
 - 모든 Windows 버전·클린 VM에서의 동작을 확인한 상태는 아니다. 실제 검증 환경과 알려진 문제는 해당 릴리스 안내를 따른다.
 - 현재 코드 서명 절차는 구성되어 있지 않다. 배포된 파일의 실제 서명 상태를 확인하고, Windows 경고를 우회하도록 보안 기능을 해제하지 않는다.
 
-알파가 발행되면 릴리스에서 설치 파일과 같은 이름의 `.exe.sha256` 파일을 함께 받는다. 예를 들어 다음 명령으로 받은 파일의 해시를 계산하고 체크섬 파일의 값과 비교한다.
+다음 명령으로 받은 파일의 해시를 계산하고 체크섬 파일의 값과 비교한다.
 
 ```powershell
 Get-FileHash -LiteralPath '.\KeyMan-Setup-1.1.0-alpha.1.exe' -Algorithm SHA256
@@ -19,7 +21,9 @@ Get-Content -LiteralPath '.\KeyMan-Setup-1.1.0-alpha.1.exe.sha256'
 Get-AuthenticodeSignature -LiteralPath '.\KeyMan-Setup-1.1.0-alpha.1.exe'
 ```
 
-예시 버전은 준비 중인 후보이며 다운로드 가능하다는 뜻이 아니다. 해시 일치는 파일 일치 확인이며 코드 서명이나 배포자 신뢰를 대신하지 않는다.
+해시 일치는 파일 일치 확인이며 코드 서명이나 배포자 신뢰를 대신하지 않는다.
+
+2026-11-06 원격 Windows Server 2025 x64 러너에서 .NET SDK 10.0.403으로 전체 테스트, 패키징, 사용자 PATH·KEYMAN_HOME 등록, 설치된 CLI·MCP 실행과 제거를 검증했다. 네이티브 클립보드는 사용자 클립보드와 분리된 window station에서 검증했다. 로컬 Windows build 26200에서도 WPF 렌더링과 격리 설치를 확인했다. ARM64, 모든 Windows 버전, 전체 수동 접근성 흐름은 미검증이다.
 
 ## 설치 결과
 
@@ -71,4 +75,4 @@ Windows, .NET 10 SDK, Inno Setup이 필요하다. `global.json`은 SDK `10.0.400
 
 `verify-windows.yml`은 PR·main에서 빌드와 전체 테스트를 실행한다. main push만으로 릴리스를 발행하지 않는다. `build-installer.yml`은 관리자가 main에서 버전을 명시해 수동 실행하는 별도 절차다. 설치 검증 후 GitHub prerelease와 SHA-256 체크섬을 발행하며 최신 안정판으로 지정하지 않는다. 임시 Actions 아티팩트는 3일 보관하고 Release 업로드 후 선택적으로 업로드한다. 사용자가 받는 GitHub Release 자산과 임시 아티팩트는 별개다.
 
-실제 릴리스 발행, 저장소 공개 전환, 서명·SmartScreen 평판, 클린 VM 검증은 로컬 준비 완료와 별도로 확인해야 한다.
+저장소 공개 전환과 비로그인 다운로드 접근, 서명·SmartScreen 평판은 릴리스 발행과 별도로 확인해야 한다. 설치 파일은 서명되지 않았으며 임의의 클린 VM 전체 검증을 완료했다는 뜻은 아니다.

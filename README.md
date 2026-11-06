@@ -4,7 +4,11 @@
 
 KeyMan은 Windows 개발자를 위한 로컬 API 키·토큰 보관함입니다. GUI에서 서비스와 환경별로 정리하고, CLI에서 스크립트에 연결하고, MCP로 AI 코딩 도구에서 목록 조회·등록·복사를 요청할 수 있습니다. 실제 값은 Windows 자격 증명 관리자에 저장합니다.
 
-> **공개 알파 준비 중입니다.** 이 문서는 다음 알파의 소스와 사용 방법을 설명합니다. 이번 변경을 포함한 설치 파일은 아직 공개되지 않았습니다. [릴리스 목록·공개 상태 확인](https://github.com/jaywapp/key-man/releases)에서 실제 배포 여부와 해당 버전의 안내를 먼저 확인하세요.
+> **[v1.1.0-alpha.1](https://github.com/jaywapp/key-man/releases/tag/v1.1.0-alpha.1) 알파** — Clear Desk 화면과 저장 안정성 개선을 담았습니다. Windows x64용 개발·평가 버전이며 설치 파일은 코드 서명되지 않았습니다.
+
+[Windows 설치 파일 다운로드](https://github.com/jaywapp/key-man/releases/download/v1.1.0-alpha.1/KeyMan-Setup-1.1.0-alpha.1.exe) · [SHA-256 체크섬](https://github.com/jaywapp/key-man/releases/download/v1.1.0-alpha.1/KeyMan-Setup-1.1.0-alpha.1.exe.sha256) · [릴리스 안내](https://github.com/jaywapp/key-man/releases/tag/v1.1.0-alpha.1)
+
+현재 저장소는 비공개입니다. 위 링크와 다운로드에는 저장소 접근 권한이 있는 GitHub 계정이 필요합니다.
 
 ![가짜 데이터로 렌더링한 KeyMan 앱 화면](docs/assets/keyman-demo.png)
 
@@ -21,7 +25,7 @@ KeyMan은 Windows 개발자를 위한 로컬 API 키·토큰 보관함입니다.
 
 ## 설치와 첫 키 등록
 
-배포된 알파를 사용하려면 릴리스의 `KeyMan-Setup-<version>.exe`와 SHA-256 체크섬을 확인한 뒤 설치합니다. 설치 파일은 Windows x64용이며 .NET 런타임을 포함합니다. 서명·운영체제·업데이트 안내는 [설치 문서](docs/installer.md)를 확인하세요. 공개 알파가 없는 동안에는 아래 소스 실행 방법을 사용합니다.
+릴리스의 `KeyMan-Setup-1.1.0-alpha.1.exe`와 SHA-256 체크섬을 확인한 뒤 설치합니다. 설치 파일은 Windows x64용이며 .NET 런타임을 포함합니다. 서명·검증 환경·업데이트 안내는 [설치 문서](docs/installer.md)를 확인하세요.
 
 1. 시작 메뉴에서 KeyMan을 실행합니다.
 2. 추가 화면에서 이름 `Sample`, 서비스 `Demo`, 환경 `Development`와 테스트용 값을 입력합니다.
@@ -34,9 +38,9 @@ KeyMan은 Windows 개발자를 위한 로컬 API 키·토큰 보관함입니다.
 설치 후 새 터미널에서 다음 명령을 사용할 수 있습니다. 비밀값 인수를 생략하면 숨김 입력을 받습니다.
 
 ```powershell
-key-man.exe register "Sample" --service Demo --environment Development
+key-man.exe register "ScriptSample" --service Demo --environment Development
 key-man.exe list Demo
-key-man.exe copy "Sample" --service Demo --environment Development
+key-man.exe copy "ScriptSample" --service Demo --environment Development
 ```
 
 `key-man.exe get "Sample"`은 **비밀값을 표준 출력으로 반환**합니다. 터미널·대화·로그로 출력하지 않도록 직접 제어하는 스크립트에서 사용하세요. 옵션, stdin 등록, 종료 코드는 [CLI 문서](docs/cli.md)에 있습니다.
