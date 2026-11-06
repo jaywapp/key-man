@@ -34,5 +34,5 @@ orchestrator: Codex
 - 운영 화면 8종을 렌더링했다: [메인](assets/wpf-clear-desk/main.png), [작은 창](assets/wpf-clear-desk/main-compact.png), [검색 결과 없음](assets/wpf-clear-desk/search-empty.png), [빈 보관함](assets/wpf-clear-desk/vault-empty.png), [긴 텍스트](assets/wpf-clear-desk/long-content.png), [추가](assets/wpf-clear-desk/add.png), [작은 추가 창](assets/wpf-clear-desk/add-compact.png), [필수 입력 오류](assets/wpf-clear-desk/add-error.png). README 이미지를 실제 적용 화면으로 갱신했다.
 - 모든 화면은 임시 메타데이터와 고정 가짜 값으로 검증했다. 사용자 보관함·실제 키·클립보드를 조회하지 않았다.
 - Clear Desk를 포함한 `KeyMan-Setup-1.1.0-alpha.1.exe` 재생성 완료. 체크섬·MIT 원문 일치·설치된 CLI 가짜 값 등록/조회/삭제·MCP 초기화·사용자 환경 불변·제거 검사 통과. 최종 해시는 [공개 알파 작업 기록](public-alpha-tasks.md)에 기록했다.
-- `git diff --check` 통과. 커밋·push·원격 릴리스는 수행하지 않았다.
+- `git diff --check` 통과. 이후 사용자 배포 승인에 따라 [PR #8](https://github.com/jaywapp/key-man/pull/8)을 병합하고 `v1.1.0-alpha.1` 알파에 포함했다. 원격 검증과 실제 Release 자산 정보는 [공개 알파 작업 기록](public-alpha-tasks.md)을 따른다.
 - 키보드 포커스·스크린리더 이름은 스타일과 계약을 확인했지만 전체 실제 키보드 조작·스크린리더·고대비·다중 모니터 DPI 전환은 검증하지 않았다. 자동 고대비 팔레트 전환은 구현하지 않았다.

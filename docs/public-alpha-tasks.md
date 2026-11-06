@@ -12,7 +12,7 @@ orchestrator: Codex
 | README·사용 안내·Threads 초안 | Codex | gpt-6.1-sol | high | plan | implementation | README, SECURITY, CONTRIBUTING, docs/사용 문서 | 실제 구현과 정합성·링크 | completed |
 | 클립보드 수명·데모·통합 | Codex | gpt-6.1-sol | high | plan | implementation | UiServices, WindowsClipboard, 새 클립보드 테스트, docs/assets | 가짜 데이터 테스트·화면 검증, native 미검증 별도 기록 | completed |
 | 전체 검증·검토·결과 기록 | Codex | gpt-6.1-sol | high | implementation | integration | docs/public-alpha-* | 실행 가능한 로컬 검사·설치·diff·시크릿 검사, 제한 사항 기록 | completed |
-| 네이티브 클립보드·원격 CI | Codex | gpt-6.1-sol | high | 사용자 요청에 따른 push 이후 | release | .github/workflows, ClipboardTests | 격리 station의 실제 Win32 복사·삭제 | pending |
+| 네이티브 클립보드·원격 CI | Codex | gpt-6.1-sol | high | 사용자 요청에 따른 push 이후 | release | .github/workflows, ClipboardTests | 격리 station의 실제 Win32 복사·삭제 | completed |
 | MIT 반영·패키징 검증 | Codex | gpt-6.1-sol | medium | 사용자 MIT 승인 완료 | license | LICENSE, README, CONTRIBUTING, docs, installer/KeyMan.iss, tools/Test-Installer.ps1 | 설치된 원문 해시 일치·격리 설치/제거 | completed |
 
 MIT 후속 작업은 원문 추가 → 문서·패키지 반영 → 재패키징·설치 검증으로 순차 진행한다. 기존 문서와 패키징 상태를 공유하고 앞 단계에 의존하므로 루트 Codex가 직접 수행한다.
@@ -23,11 +23,11 @@ MIT 후속 작업은 원문 추가 → 문서·패키지 반영 → 재패키징
 
 | 후속 작업 | owner | model | effort | depends_on | parallel_group | files | verification | status |
 |---|---|---|---|---|---|---|---|---|
-| 커밋·push·PR·원격 CI | Codex | gpt-6.1-sol | high | 사용자 배포 승인 | release | 전체 변경 | 시크릿 검사·CI 통과 | in_progress |
-| 병합·알파 발행 | Codex | gpt-6.1-sol | high | CI | release | main, Release 자산 | 설치·체크섬·태그 | pending |
-| 배포 상태 문서 정리 | Codex | gpt-6.1-sol | high | Release 발행 | release | README, docs/installer, SECURITY 등 | 실제 링크·문구·문서 PR | pending |
+| 커밋·push·PR·원격 CI | Codex | gpt-6.1-sol | high | 사용자 배포 승인 | release | 전체 변경 | 시크릿 검사·CI 통과 | done |
+| 병합·알파 발행 | Codex | gpt-6.1-sol | high | CI | release | main, Release 자산 | 설치·체크섬·태그 | done |
+| 배포 상태 문서 정리 | Codex | gpt-6.1-sol | high | Release 발행 | release | README, docs/installer, SECURITY 등 | 실제 자산·문구·로컬 링크 57개·독립 검토, docs/published-alpha PR로 전달 | completed |
 
-## 검증 결과 (2026-11-06)
+## 로컬 후보 검증 결과 (2026-11-06, 원격 발행 이전)
 
 - 환경: Windows x64, OS build 26200, SDK 10.0.400. 소스 테스트는 설치된 .NET 10.0.11에서, 배포물은 self-contained .NET 10.0.14에서 확인했다.
 - `tools/Test-KeyMan.ps1`: Release 빌드 경고 0·오류 0. 메타데이터 39개, 클립보드 수명 14개, GUI 상태 13개 검사 통과. 저장소·MCP 스모크 통과.
@@ -41,16 +41,26 @@ MIT 후속 작업은 원문 추가 → 문서·패키지 반영 → 재패키징
 - `tools/Build-Installer.ps1 -Version 1.1.0-alpha.1`: 최종 설치 파일 및 SHA-256 생성. .NET Core/Desktop runtime 10.0.14 확인, runtime 의존성/pack 33개의 원문 고지와 버전·출처 목록 포함.
 - `tools/Test-Installer.ps1`: 체크섬, 격리 설치, 설치된 CLI의 가짜 값 등록·목록·조회·삭제, 설치된 MCP 초기화/도구 목록, 사용자 PATH/KEYMAN_HOME 불변, 제거 검증 통과. 실제 등록 옵션은 원격의 깨끗한 사용자에서 검증하도록 구성했으며 로컬에서는 실행하지 않았다.
 - MIT 승인 후 루트 `LICENSE`, README·기여 안내·릴리스 노트를 일치시켰다. 설치 폴더에 `LICENSE.txt`를 포함한다. 이후 Clear Desk WPF 변경까지 재패키징했으며 저장소 원문과 설치된 원문의 SHA-256 일치, CLI·MCP·환경 불변·제거 검증을 다시 통과했다.
-- 설치 파일: `artifacts/installer/KeyMan-Setup-1.1.0-alpha.1.exe`, 176,443,565 bytes, Authenticode `NotSigned`.
+- 로컬 후보 설치 파일(최종 Release 자산과 다름): `artifacts/installer/KeyMan-Setup-1.1.0-alpha.1.exe`, 176,443,565 bytes, Authenticode `NotSigned`.
 - SHA-256: `2cc843f44e7c35643de2f1ae195a2b0aec9ad9c1808412b26dd4df215b2e48cc`.
 - NuGet 직접·전이 패키지 취약점 감사: 검출 없음. Gitleaks 8.30.1: 전체 Git 이력 11커밋과 변경·신규 공개 대상 파일에서 검출 없음. 알려지지 않은 취약점이나 모든 개인정보 부재를 보장하는 감사는 아니다.
 - 문서 로컬 링크 오류 0, Threads 본문 307자·댓글 288자, `git diff --check` 통과.
-- 사용자 실제 vault·키 조회/변경, 커밋/push/PR, 저장소 공개 전환, 릴리스/Threads 발행은 하지 않았다.
+- 이 로컬 검증 시점에는 사용자 실제 vault·키 조회/변경, 커밋/push/PR, 저장소 공개 전환, 릴리스/Threads 발행을 하지 않았다. 이후 승인된 원격 작업 결과는 아래에 기록한다.
 
 ## 남은 공개 조건
 
-MIT 라이선스는 사용자 승인으로 확정했다. 원격 필수 CI(네이티브 클립보드 포함), 보안 제보 채널 활성화, 공개 저장소/다운로드의 비로그인 접근 확인이 필요하다. 코드 서명은 구성되지 않았으며 알파 안내에 명시했다. 클린 VM·ARM64·모든 Windows 버전 및 전체 사용자 수동 흐름은 검증하지 않았다.
+MIT 라이선스는 사용자 승인으로 확정했다. 원격 필수 CI(네이티브 클립보드 포함)는 통과했다. 저장소 공개 승인, 보안 제보 채널 활성화, 공개 저장소/다운로드의 비로그인 접근 확인이 남아 있다. 코드 서명은 구성되지 않았으며 알파 안내에 명시했다. ARM64·모든 Windows 버전 및 전체 사용자 수동 흐름은 검증하지 않았다.
 
 ## 원격 검증 재시도
 
-- Codex / gpt-6.1-sol / high / release 순차: PR #8 첫 CI 네이티브 클립보드 실패 수정 중. 복사 표식과 최종 sequence를 함께 검증하며 네이티브 필수 검사를 유지한다. 변경: ClipboardOwnership, NativeClipboardTests. 검증: 로컬 수명 14개 통과, 원격 네이티브 9개와 전체 설치 검증 필요.
+- Codex / gpt-6.1-sol / high / release 순차: PR #8 첫 CI 네이티브 클립보드 실패 수정 완료. 복사 표식과 최종 sequence를 함께 검증하며 네이티브 필수 검사를 유지했다. 변경: ClipboardOwnership, NativeClipboardTests. 검증: 로컬 수명 14개와 원격 네이티브 9개 및 전체 설치 검증 통과.
+
+## 원격 발행 결과
+
+- [PR #8](https://github.com/jaywapp/key-man/pull/8)을 squash 병합했다. 릴리스 소스: `e809f8d77da91d0fcf5f0d59d39eb86a9fa0f3ea`.
+- [필수 CI](https://github.com/jaywapp/key-man/actions/runs/42142026182): Release 빌드 경고·오류 0, 메타데이터 39개·클립보드 수명 14개·네이티브 클립보드 9개·GUI 32개, importer·CLI·MCP 통과. 패키징과 클린 러너 사용자 PATH·KEYMAN_HOME 등록·제거 검증 통과.
+- [발행 워크플로](https://github.com/jaywapp/key-man/actions/runs/42142621668)로 [v1.1.0-alpha.1](https://github.com/jaywapp/key-man/releases/tag/v1.1.0-alpha.1)을 prerelease로 발행했다. 최신 안정판으로 지정하지 않았다.
+- 실제 Release 자산을 인증된 GitHub CLI로 다시 다운로드했다. 크기 176,443,024 bytes, Authenticode `NotSigned`, SHA-256 `a473da6d53e0f01962770a451daf18103b170135c32a1680e55a95996f5998c6`. 첨부 체크섬 및 GitHub 자산 digest와 일치한다.
+- 다운로드한 최종 자산도 로컬 격리 경로에서 설치·라이선스 원문·CLI 가짜 값 등록/조회/삭제·MCP·사용자 환경 불변·제거 검사를 통과했다. 문서 PR도 필수 Windows CI 통과 후 병합한다.
+- 환경: Windows Server 2025 x64 build 26100, .NET SDK 10.0.403, 배포 런타임 10.0.14. 로컬 네이티브 검사의 권한 부족을 원격 격리 station 검사로 해소했다. 사용자 실제 클립보드는 접근하지 않았다.
+- 저장소 공개 전환과 Threads 게시는 수행하지 않았다. 비공개 취약점 제보 API는 현재 비공개 저장소에서 404이며 공개 전환 후 별도 활성화·접근 검증이 필요하다.
