@@ -1,0 +1,1 @@
+PASS: 3 WPF concepts, 12 renders including long fixture content, fake-data search / empty / copy status / deletion / addition. No vault or clipboard access.

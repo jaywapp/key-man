@@ -5,6 +5,7 @@ using KeyMan.Services;
 var failures = new List<string>();
 await VerifyMetadataStoreAsync(failures);
 VerifyWindowsCredentialStore(failures);
+await ImporterTests.RunAsync(failures);
 
 if (failures.Count > 0)
 {
@@ -36,7 +37,7 @@ static async Task VerifyMetadataStoreAsync(ICollection<string> failures)
             CreatedAt = DateTimeOffset.Now
         };
 
-        await store.SaveAsync([expected]);
+        await store.MutateAsync(transaction => transaction.Entries.Add(expected));
         var actual = await store.LoadAsync();
         if (actual.Count != 1 || actual[0].Id != expected.Id || actual[0].Name != expected.Name)
         {

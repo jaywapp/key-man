@@ -1,6 +1,8 @@
 using KeyMan.Mcp;
 using KeyMan.Services;
 using ModelContextProtocol.Client;
+using ModelContextProtocol.Server;
+using System.Reflection;
 
 var testDirectory = Path.Combine(Path.GetTempPath(), "KeyMan.McpTests", Guid.NewGuid().ToString("N"));
 var metadataStore = new MetadataStore(Path.Combine(testDirectory, "vault.json"));
@@ -28,6 +30,28 @@ try
     var storedEntries = await metadataStore.LoadAsync();
     Assert(storedEntries.Count == 1, "Metadata was not persisted.");
     Assert(credentialStore.Read(storedEntries[0].Id) == secret, "Credential Manager did not preserve the secret.");
+
+    File.SetAttributes(Path.Combine(testDirectory, "vault.json"), FileAttributes.ReadOnly);
+    clipboard.WriteText("replacement-fixture");
+    try
+    {
+        await AssertThrowsAsync<UnauthorizedAccessException>(() => tools.RegisterFromClipboardAsync(
+            "MCP smoke test", "KeyMan", "Test", force: true));
+        Assert(credentialStore.Read(storedEntries[0].Id) == secret, "A rejected replacement did not restore the previous secret.");
+        await AssertThrowsAsync<UnauthorizedAccessException>(() => tools.RemoveAsync("MCP smoke test", "KeyMan", "Test"));
+        Assert(credentialStore.Read(storedEntries[0].Id) == secret, "A rejected removal did not restore the previous secret.");
+        Assert((await tools.ListAsync()).Count == 1, "A rejected removal changed metadata.");
+    }
+    finally
+    {
+        File.SetAttributes(Path.Combine(testDirectory, "vault.json"), FileAttributes.Normal);
+    }
+
+    foreach (var methodName in new[] { nameof(KeyManTools.RegisterFromClipboardAsync), nameof(KeyManTools.RegisterFromEnvironmentAsync) })
+    {
+        var annotation = typeof(KeyManTools).GetMethod(methodName)!.GetCustomAttribute<McpServerToolAttribute>();
+        Assert(annotation?.Destructive == true, "A force-capable registration tool must be marked destructive.");
+    }
 
     var copied = await tools.CopyAsync("MCP smoke test", "KeyMan", "Test");
     Assert(copied.Success && clipboard.Text == secret, "Copy did not write the secret to the local clipboard adapter.");
@@ -91,6 +115,20 @@ static void Assert(bool condition, string message)
     {
         throw new InvalidOperationException(message);
     }
+}
+
+static async Task AssertThrowsAsync<T>(Func<Task> operation) where T : Exception
+{
+    try
+    {
+        await operation();
+    }
+    catch (T)
+    {
+        return;
+    }
+
+    throw new InvalidOperationException($"Expected {typeof(T).Name}.");
 }
 
 internal sealed class TestClipboard : IKeyManClipboard

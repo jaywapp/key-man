@@ -1,190 +1,72 @@
-name: Build Windows Installer
+name: Publish Windows Alpha
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Explicit alpha version (for example 1.1.0-alpha.1)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
 
 concurrency:
   group: key-man-windows-release
   cancel-in-progress: false
 
-permissions:
-  contents: write
+defaults:
+  run:
+    shell: powershell
 
 env:
   DOTNET_NOLOGO: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
+  KEYMAN_REQUIRE_NATIVE_CLIPBOARD_TESTS: '1'
 
 jobs:
-  build-installer:
-    name: Build installer
+  publish-alpha:
+    if: github.ref == 'refs/heads/main'
     runs-on: windows-latest
-    timeout-minutes: 30
-
+    timeout-minutes: 40
+    permissions:
+      contents: write
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v6
-
-      - name: Resolve release version
-        id: version
-        shell: powershell
-        run: |
-          $version = "1.0.${{ github.run_number }}"
-          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
-          "tag=v$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
-
-      - name: Set up .NET
-        uses: actions/setup-dotnet@v5
+      - uses: actions/checkout@v6
         with:
-          dotnet-version: 9.0.x
-
-      - name: Restore
-        run: dotnet restore .\KeyMan.sln
-
-      - name: Build
-        run: dotnet build .\KeyMan.sln -c Release --no-restore
-
-      - name: Run storage smoke tests
-        run: dotnet run --project .\tests\KeyMan.SmokeTests\KeyMan.SmokeTests.csproj -c Release --no-build
-
-      - name: Run MCP smoke tests
-        run: dotnet run --project .\tests\KeyMan.McpTests\KeyMan.McpTests.csproj -c Release --no-build
-
-      - name: Publish WPF application
-        env:
-          RELEASE_VERSION: ${{ steps.version.outputs.version }}
-          KEYMAN_FEEDBACK_RELAY_URL: ${{ vars.FEEDBACK_RELAY_URL }}
-        run: >-
-          dotnet publish .\src\KeyMan\KeyMan.csproj
-          -c Release
-          -r win-x64
-          --self-contained true
-          -p:Version=$env:RELEASE_VERSION
-          -p:PublishSingleFile=true
-          -p:IncludeNativeLibrariesForSelfExtract=true
-          -p:EnableCompressionInSingleFile=true
-          -o .\artifacts\publish\gui
-
-      - name: Publish CLI
-        run: >-
-          dotnet publish .\src\KeyMan.Cli\KeyMan.Cli.csproj
-          -c Release
-          -r win-x64
-          --self-contained true
-          -p:PublishSingleFile=true
-          -p:IncludeNativeLibrariesForSelfExtract=true
-          -p:EnableCompressionInSingleFile=true
-          -o .\artifacts\publish\cli
-
-      - name: Publish MCP server
-        run: >-
-          dotnet publish .\src\KeyMan.Mcp\KeyMan.Mcp.csproj
-          -c Release
-          -r win-x64
-          --self-contained true
-          -p:PublishSingleFile=true
-          -p:IncludeNativeLibrariesForSelfExtract=true
-          -p:EnableCompressionInSingleFile=true
-          -o .\artifacts\publish\mcp
-
-      - name: Install Inno Setup
-        shell: powershell
-        run: choco install innosetup --no-progress -y
-
-      - name: Compile installer
-        shell: powershell
-        env:
-          RELEASE_VERSION: ${{ steps.version.outputs.version }}
-        run: |
-          $isccCandidates = @(
-            "${env:ProgramFiles(x86)}\Inno Setup 7\ISCC.exe",
-            "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
-            "$env:ProgramFiles\Inno Setup 7\ISCC.exe",
-            "$env:ProgramFiles\Inno Setup 6\ISCC.exe",
-            "$env:ChocolateyInstall\bin\ISCC.exe"
-          )
-          $iscc = $isccCandidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
-          if (-not $iscc) {
-            throw "ISCC.exe was not found after installing Inno Setup."
-          }
-
-          $guiDirectory = Join-Path $env:GITHUB_WORKSPACE 'artifacts\publish\gui'
-          $cliDirectory = Join-Path $env:GITHUB_WORKSPACE 'artifacts\publish\cli'
-          $mcpDirectory = Join-Path $env:GITHUB_WORKSPACE 'artifacts\publish\mcp'
-          $outputDirectory = Join-Path $env:GITHUB_WORKSPACE 'artifacts\installer'
-          New-Item -ItemType Directory -Force -Path $outputDirectory | Out-Null
-
-          & $iscc "/DMyAppVersion=$env:RELEASE_VERSION" "/DGuiSourceDir=$guiDirectory" "/DCliSourceDir=$cliDirectory" "/DMcpSourceDir=$mcpDirectory" "/DInstallerOutputDir=$outputDirectory" ".\installer\KeyMan.iss"
-          if ($LASTEXITCODE -ne 0) {
-            throw "Inno Setup compilation failed with exit code $LASTEXITCODE."
-          }
-
-      - name: Smoke test installer
-        shell: powershell
-        run: |
-          $installer = Get-ChildItem -LiteralPath '.\artifacts\installer' -Filter 'KeyMan-Setup-*.exe' | Select-Object -First 1
-          if (-not $installer) {
-            throw "Installer output was not created."
-          }
-
-          $testDirectory = Join-Path $env:RUNNER_TEMP 'KeyMan-Install-Test'
-          $process = Start-Process -FilePath $installer.FullName -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/DIR=$testDirectory" -Wait -PassThru
-          if ($process.ExitCode -ne 0) {
-            throw "Installer smoke test failed with exit code $($process.ExitCode)."
-          }
-
-          & (Join-Path $testDirectory 'key-man.exe') --help | Out-Null
-          if ($LASTEXITCODE -ne 0) {
-            throw "Installed key-man.exe did not run successfully."
-          }
-
-          if (-not (Test-Path -LiteralPath (Join-Path $testDirectory 'KeyMan.Gui.exe'))) {
-            throw "Installed KeyMan.Gui.exe was not found."
-          }
-
-          $mcpExecutable = Join-Path $testDirectory 'key-man-mcp.exe'
-          if (-not (Test-Path -LiteralPath $mcpExecutable)) {
-            throw "Installed key-man-mcp.exe was not found."
-          }
-
-          $env:KEYMAN_MCP_TEST_SERVER = $mcpExecutable
-          dotnet run --project .\tests\KeyMan.McpTests\KeyMan.McpTests.csproj -c Release --no-build
-          if ($LASTEXITCODE -ne 0) {
-            throw "Installed key-man-mcp.exe did not complete the MCP protocol smoke test."
-          }
-          Remove-Item Env:KEYMAN_MCP_TEST_SERVER
-
-          $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
-          if (($userPath -split ';') -notcontains $testDirectory) {
-            throw "The installer did not add its directory to the user PATH."
-          }
-
-          $uninstaller = Join-Path $testDirectory 'unins000.exe'
-          $uninstallProcess = Start-Process -FilePath $uninstaller -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Wait -PassThru
-          if ($uninstallProcess.ExitCode -ne 0) {
-            throw "Uninstaller smoke test failed with exit code $($uninstallProcess.ExitCode)."
-          }
-
-      - name: Upload installer
-        uses: actions/upload-artifact@v7
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v5
         with:
-          name: KeyMan-Windows-Installer
-          path: artifacts/installer/KeyMan-Setup-*.exe
-          if-no-files-found: error
-          retention-days: 30
-
-      - name: Publish GitHub Release
-        shell: powershell
+          global-json-file: global.json
+      - name: Build and run all checks
+        run: .\tools\Test-KeyMan.ps1
+      - name: Prepare verified portable Inno Setup
+        run: .\tools\Get-InnoCompiler.ps1
+      - name: Package alpha and SHA-256 checksum
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: .\tools\Build-Installer.ps1 -Version $env:RELEASE_VERSION
+      - name: Verify installation and removal on a clean runner
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: .\tools\Test-Installer.ps1 -InstallerPath ".\artifacts\installer\KeyMan-Setup-$env:RELEASE_VERSION.exe" -RegisterEnvironment
+      - name: Publish GitHub prerelease
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ steps.version.outputs.tag }}
-          RELEASE_VERSION: ${{ steps.version.outputs.version }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_VERSION: ${{ inputs.version }}
         run: |
-          $installers = @(Get-ChildItem -LiteralPath '.\artifacts\installer' -Filter "KeyMan-Setup-$env:RELEASE_VERSION.exe")
-          if ($installers.Count -ne 1 -or $installers[0].Length -eq 0) {
-            throw "Expected non-empty installer was not found."
-          }
-          $installer = $installers[0]
-          gh release create $env:RELEASE_TAG $installer.FullName --target $env:GITHUB_SHA --title "KeyMan $env:RELEASE_VERSION" --generate-notes
+          $installer = ".\artifacts\installer\KeyMan-Setup-$env:RELEASE_VERSION.exe"
+          $checksum = "$installer.sha256"
+          gh release create "v$env:RELEASE_VERSION" $installer $checksum --target $env:GITHUB_SHA --title "KeyMan $env:RELEASE_VERSION" --prerelease --latest=false --notes-file .\docs\alpha-release-notes.md --generate-notes
+          if ($LASTEXITCODE -ne 0) { throw 'GitHub prerelease publication failed.' }
+      - name: Retain a short-lived build copy
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          name: KeyMan-Windows-Alpha-${{ inputs.version }}
+          path: |
+            artifacts/installer/KeyMan-Setup-${{ inputs.version }}.exe
+            artifacts/installer/KeyMan-Setup-${{ inputs.version }}.exe.sha256
+          if-no-files-found: error
+          retention-days: 3
