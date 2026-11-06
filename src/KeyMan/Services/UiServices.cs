@@ -15,7 +15,7 @@ public interface IDialogService
 
 public interface IClipboardService : IDisposable
 {
-    Task CopyWithAutoClearAsync(string value, TimeSpan clearAfter);
+    Task<bool> CopyWithAutoClearAsync(string value, TimeSpan clearAfter);
 }
 
 public sealed class WpfDialogService(Window owner) : IDialogService
@@ -44,25 +44,14 @@ public sealed class WpfDialogService(Window owner) : IDialogService
 
 public sealed class WpfClipboardService : IClipboardService
 {
-    private CancellationTokenSource? _clearCancellation;
+    private readonly ClipboardAutoClear _autoClear = new(
+        ClipboardOwnership.WriteText,
+        ClipboardOwnership.ClearIfOwned,
+        _ => MessageBox.Show("클립보드를 정리하지 못했습니다. 복사한 값을 직접 지워 주세요.",
+            "KeyMan", MessageBoxButton.OK, MessageBoxImage.Warning));
 
-    public async Task CopyWithAutoClearAsync(string value, TimeSpan clearAfter)
-    {
-        Clipboard.SetText(value);
-        _clearCancellation?.Cancel();
-        _clearCancellation?.Dispose();
-        _clearCancellation = new CancellationTokenSource();
-        await Task.Delay(clearAfter, _clearCancellation.Token);
+    public Task<bool> CopyWithAutoClearAsync(string value, TimeSpan clearAfter) =>
+        _autoClear.CopyAsync(value, clearAfter);
 
-        if (Clipboard.ContainsText() && Clipboard.GetText() == value)
-        {
-            Clipboard.Clear();
-        }
-    }
-
-    public void Dispose()
-    {
-        _clearCancellation?.Cancel();
-        _clearCancellation?.Dispose();
-    }
+    public void Dispose() => _autoClear.Dispose();
 }

@@ -3,7 +3,11 @@
 #define MyAppExeName "KeyMan.Gui.exe"
 
 #ifndef MyAppVersion
-  #define MyAppVersion "0.1.0"
+  #define MyAppVersion "1.1.0-alpha.1"
+#endif
+
+#ifndef MyAppFileVersion
+  #define MyAppFileVersion "1.1.0.1"
 #endif
 
 #ifndef GuiSourceDir
@@ -22,6 +26,10 @@
   #define InstallerOutputDir "..\artifacts\installer"
 #endif
 
+#ifndef NoticesSourceDir
+  #define NoticesSourceDir "..\artifacts\publish\notices"
+#endif
+
 [Setup]
 AppId={{A4347C67-9F37-4FAF-A697-E8ED41A87290}
 AppName={#MyAppName}
@@ -30,6 +38,9 @@ AppPublisher={#MyAppPublisher}
 DefaultDirName={localappdata}\Programs\KeyMan
 DefaultGroupName=KeyMan
 DisableProgramGroupPage=yes
+CreateUninstallRegKey=IsNormalInstall
+UsePreviousAppDir=IsNormalInstall
+UsePreviousTasks=IsNormalInstall
 PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
 OutputDir={#InstallerOutputDir}
@@ -43,7 +54,7 @@ UninstallDisplayIcon={app}\{#MyAppExeName}
 ChangesEnvironment=yes
 CloseApplications=yes
 RestartApplications=no
-VersionInfoVersion={#MyAppVersion}
+VersionInfoVersion={#MyAppFileVersion}
 VersionInfoCompany={#MyAppPublisher}
 VersionInfoDescription=KeyMan installer
 VersionInfoProductName={#MyAppName}
@@ -53,29 +64,40 @@ Name: "korean"; MessagesFile: "compiler:Languages\Korean.isl"
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
+Name: "addtopath"; Description: "사용자 PATH에 KeyMan 추가"; GroupDescription: "명령줄 사용:"; Check: IsNormalInstall
 Name: "desktopicon"; Description: "바탕 화면에 바로가기 만들기"; GroupDescription: "추가 바로가기:"; Flags: unchecked
 
 [Files]
+Source: "..\LICENSE"; DestDir: "{app}"; DestName: "LICENSE.txt"; Flags: ignoreversion
 Source: "{#GuiSourceDir}\KeyMan.exe"; DestDir: "{app}"; DestName: "{#MyAppExeName}"; Flags: ignoreversion
 Source: "{#CliSourceDir}\keyman.exe"; DestDir: "{app}"; DestName: "key-man.exe"; Flags: ignoreversion
 Source: "{#CliSourceDir}\keyman.exe"; DestDir: "{app}"; DestName: "keyman.exe"; Flags: ignoreversion
 Source: "{#McpSourceDir}\key-man-mcp.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#NoticesSourceDir}\*"; DestDir: "{app}\ThirdPartyNotices"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{group}\KeyMan"; Filename: "{app}\{#MyAppExeName}"
-Name: "{autodesktop}\KeyMan"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+Name: "{group}\KeyMan"; Filename: "{app}\{#MyAppExeName}"; Check: IsNormalInstall
+Name: "{autodesktop}\KeyMan"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon; Check: IsNormalInstall
 
 [Registry]
-Root: HKCU; Subkey: "Environment"; ValueType: expandsz; ValueName: "KEYMAN_HOME"; ValueData: "{app}"; Flags: preservestringtype uninsdeletevalue
-Root: HKCU; Subkey: "Software\KeyMan"; ValueType: string; ValueName: "InstallPath"; ValueData: "{app}"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Environment"; ValueType: expandsz; ValueName: "KEYMAN_HOME"; ValueData: "{app}"; Flags: preservestringtype uninsdeletevalue; Check: IsNormalInstall
+Root: HKCU; Subkey: "Software\KeyMan"; ValueType: string; ValueName: "InstallPath"; ValueData: "{app}"; Flags: uninsdeletekey; Check: IsNormalInstall
 
 [Run]
-Filename: "{app}\{#MyAppExeName}"; Description: "KeyMan 실행"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\{#MyAppExeName}"; Description: "KeyMan 실행"; Flags: nowait postinstall skipifsilent; Check: IsNormalInstall
+
+[UninstallDelete]
+Type: files; Name: "{app}\.keyman-isolated-test"
 
 [Code]
 const
   UserEnvironmentKey = 'Environment';
   KeyManRegistryKey = 'Software\KeyMan';
+
+function IsNormalInstall: Boolean;
+begin
+  Result := ExpandConstant('{param:ISOLATEDTEST|0}') <> '1';
+end;
 
 function NormalizePathEntry(Value: String): String;
 begin
@@ -190,11 +212,17 @@ end;
 procedure CurStepChanged(CurStep: TSetupStep);
 begin
   if CurStep = ssPostInstall then
-    AddInstallDirectoryToPath;
+  begin
+    if not IsNormalInstall then
+      SaveStringToFile(ExpandConstant('{app}\.keyman-isolated-test'), '1', False)
+    else if WizardIsTaskSelected('addtopath') then
+      AddInstallDirectoryToPath;
+  end;
 end;
 
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 begin
-  if CurUninstallStep = usUninstall then
+  if (CurUninstallStep = usUninstall) and
+    not FileExists(ExpandConstant('{app}\.keyman-isolated-test')) then
     RemoveInstallDirectoryFromPath;
 end;

@@ -39,7 +39,7 @@ public sealed class KeyManTools(
         return Success($"Copied '{entry.Name}' to the local clipboard.", entry);
     }
 
-    [McpServerTool(Name = "keyman_register_from_clipboard", Title = "Register from clipboard", Destructive = false, Idempotent = false, OpenWorld = false, UseStructuredContent = true)]
+    [McpServerTool(Name = "keyman_register_from_clipboard", Title = "Register from clipboard", Destructive = true, Idempotent = false, OpenWorld = false, UseStructuredContent = true)]
     [Description("Stores the current local clipboard text in KeyMan. The secret is never sent through MCP.")]
     public Task<OperationResult> RegisterFromClipboardAsync(
         [Description("Credential name.")] string name,
@@ -50,7 +50,7 @@ public sealed class KeyManTools(
         [Description("Replace a matching entry when true.")] bool force = false) =>
         RegisterAsync(name, clipboard.ReadText(), service, environment, notes, expiresOn, force);
 
-    [McpServerTool(Name = "keyman_register_from_environment", Title = "Register from environment", Destructive = false, Idempotent = false, OpenWorld = false, UseStructuredContent = true)]
+    [McpServerTool(Name = "keyman_register_from_environment", Title = "Register from environment", Destructive = true, Idempotent = false, OpenWorld = false, UseStructuredContent = true)]
     [Description("Stores a secret from a named local environment variable. The value is never sent through MCP.")]
     public Task<OperationResult> RegisterFromEnvironmentAsync(
         [Description("Credential name.")] string name,
@@ -78,22 +78,30 @@ public sealed class KeyManTools(
         [Description("Optional service used to disambiguate matching names.")] string? service = null,
         [Description("Optional environment used to disambiguate matching names.")] string? environment = null)
     {
-        var entry = await ResolveAsync(name, service, environment);
-        var entries = (await metadataStore.LoadAsync()).ToList();
-        entries.RemoveAll(item => item.Id == entry.Id);
-        await metadataStore.SaveAsync(entries);
-        try
+        CredentialEntry? removed = null;
+        await metadataStore.MutateAsync(transaction =>
         {
-            credentialStore.Delete(entry.Id);
-        }
-        catch
-        {
-            entries.Add(entry);
-            await metadataStore.SaveAsync(entries);
-            throw;
-        }
+            var entry = Resolve(transaction.Entries, name, service, environment);
+            string? previousSecret = null;
+            try
+            {
+                previousSecret = credentialStore.Read(entry.Id);
+            }
+            catch (Win32Exception exception) when (exception.NativeErrorCode == 1168)
+            {
+            }
 
-        return Success($"Removed '{entry.Name}'.", entry);
+            if (previousSecret is not null)
+            {
+                transaction.OnRollback(() => credentialStore.Save(entry.Id, previousSecret));
+            }
+
+            credentialStore.Delete(entry.Id);
+            transaction.Entries.Remove(entry);
+            removed = entry;
+        });
+
+        return Success($"Removed '{removed!.Name}'.", removed);
     }
 
     private async Task<OperationResult> RegisterAsync(
@@ -124,68 +132,57 @@ public sealed class KeyManTools(
             expiration = parsedExpiration;
         }
 
-        var entries = (await metadataStore.LoadAsync()).ToList();
-        var existing = entries.SingleOrDefault(entry =>
-            entry.Name.Equals(name, StringComparison.CurrentCultureIgnoreCase) &&
-            entry.Service.Equals(service, StringComparison.CurrentCultureIgnoreCase) &&
-            entry.Environment.Equals(environment, StringComparison.CurrentCultureIgnoreCase));
-        if (existing is not null && !force)
+        CredentialEntry? registered = null;
+        var updated = false;
+        await metadataStore.MutateAsync(transaction =>
         {
-            throw new InvalidOperationException("A matching entry already exists. Set force to true to replace it.");
-        }
-
-        if (existing is not null)
-        {
-            var previousSecret = credentialStore.Read(existing.Id);
-            var previousNotes = existing.Notes;
-            var previousExpiration = existing.ExpiresOn;
-            try
+            var existing = transaction.Entries.SingleOrDefault(entry =>
+                entry.Name.Equals(name, StringComparison.CurrentCultureIgnoreCase) &&
+                entry.Service.Equals(service, StringComparison.CurrentCultureIgnoreCase) &&
+                entry.Environment.Equals(environment, StringComparison.CurrentCultureIgnoreCase));
+            if (existing is not null && !force)
             {
+                throw new InvalidOperationException("A matching entry already exists. Set force to true to replace it.");
+            }
+
+            if (existing is not null)
+            {
+                var previousSecret = credentialStore.Read(existing.Id);
+                transaction.OnRollback(() => credentialStore.Save(existing.Id, previousSecret));
                 credentialStore.Save(existing.Id, secret);
                 existing.Notes = notes.Trim();
                 existing.ExpiresOn = expiration;
-                await metadataStore.SaveAsync(entries);
+                registered = existing;
+                updated = true;
+                return;
             }
-            catch
+
+            var created = new CredentialEntry
             {
-                credentialStore.Save(existing.Id, previousSecret);
-                existing.Notes = previousNotes;
-                existing.ExpiresOn = previousExpiration;
-                throw;
-            }
+                Id = Guid.NewGuid(),
+                Name = name,
+                Service = service,
+                Environment = environment,
+                Notes = notes.Trim(),
+                ExpiresOn = expiration,
+                CreatedAt = DateTimeOffset.Now
+            };
+            transaction.OnRollback(() => credentialStore.Delete(created.Id));
+            credentialStore.Save(created.Id, secret);
+            transaction.Entries.Add(created);
+            registered = created;
+        });
 
-            return Success($"Updated '{existing.Name}'.", existing);
-        }
-
-        var created = new CredentialEntry
-        {
-            Id = Guid.NewGuid(),
-            Name = name,
-            Service = service,
-            Environment = environment,
-            Notes = notes.Trim(),
-            ExpiresOn = expiration,
-            CreatedAt = DateTimeOffset.Now
-        };
-        credentialStore.Save(created.Id, secret);
-        entries.Add(created);
-        try
-        {
-            await metadataStore.SaveAsync(entries);
-        }
-        catch
-        {
-            credentialStore.Delete(created.Id);
-            throw;
-        }
-
-        return Success($"Registered '{created.Name}'.", created);
+        return Success($"{(updated ? "Updated" : "Registered")} '{registered!.Name}'.", registered);
     }
 
-    private async Task<CredentialEntry> ResolveAsync(string name, string? service, string? environment)
+    private async Task<CredentialEntry> ResolveAsync(string name, string? service, string? environment) =>
+        Resolve(await metadataStore.LoadAsync(), name, service, environment);
+
+    private static CredentialEntry Resolve(IEnumerable<CredentialEntry> entries, string name, string? service, string? environment)
     {
         name = RequireText(name, nameof(name));
-        var matches = (await metadataStore.LoadAsync())
+        var matches = entries
             .Where(entry => entry.Name.Equals(name, StringComparison.CurrentCultureIgnoreCase))
             .Where(entry => string.IsNullOrWhiteSpace(service) || entry.Service.Equals(service, StringComparison.CurrentCultureIgnoreCase))
             .Where(entry => string.IsNullOrWhiteSpace(environment) || entry.Environment.Equals(environment, StringComparison.CurrentCultureIgnoreCase))

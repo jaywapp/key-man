@@ -1,174 +1,114 @@
 param(
-    [Parameter(Mandatory = $false)]
-    [string]$RootPath = 'D:\workspace'
+    [string]$RootPath = 'D:\workspace',
+    [string]$KeyManPath,
+    [string]$VaultPath
 )
 
 $ErrorActionPreference = 'Stop'
 
-$nativeSource = @'
-using System;
-using System.Runtime.InteropServices;
-
-public static class KeyManCredentialNative
-{
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-    public struct Credential
-    {
-        public int Flags;
-        public int Type;
-        public string TargetName;
-        public string Comment;
-        public System.Runtime.InteropServices.ComTypes.FILETIME LastWritten;
-        public int CredentialBlobSize;
-        public IntPtr CredentialBlob;
-        public int Persist;
-        public int AttributeCount;
-        public IntPtr Attributes;
-        public string TargetAlias;
-        public string UserName;
-    }
-
-    [DllImport("advapi32.dll", EntryPoint = "CredWriteW", CharSet = CharSet.Unicode, SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    public static extern bool CredWrite(ref Credential credential, int flags);
-
-    [DllImport("advapi32.dll", EntryPoint = "CredDeleteW", CharSet = CharSet.Unicode, SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    public static extern bool CredDelete(string target, int type, int flags);
+if (-not (Test-Path -LiteralPath $RootPath -PathType Container)) {
+    throw 'RootPath must be an existing directory.'
 }
-'@
 
-Add-Type -TypeDefinition $nativeSource
+if ([string]::IsNullOrWhiteSpace($KeyManPath)) {
+    $command = Get-Command 'key-man.exe', 'keyman.exe' -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($null -eq $command) {
+        throw 'Install KeyMan or specify -KeyManPath with the built CLI executable.'
+    }
+    $KeyManPath = $command.Source
+}
 
-function Write-KeyManCredential {
-    param(
-        [Parameter(Mandatory = $true)][string]$Target,
-        [Parameter(Mandatory = $true)][string]$Value
-    )
+$KeyManPath = (Resolve-Path -LiteralPath $KeyManPath).ProviderPath
+if (-not (Test-Path -LiteralPath $KeyManPath -PathType Leaf) -or
+    [IO.Path]::GetExtension($KeyManPath) -ne '.exe') {
+    throw 'KeyManPath must point to the KeyMan CLI executable.'
+}
 
-    $blobSize = [Text.Encoding]::Unicode.GetByteCount($Value)
-    if ($blobSize -gt 2560) {
-        return $false
+# Encode arguments for Windows CommandLineToArgvW parsing, including trailing backslashes.
+function ConvertTo-NativeArgument {
+    param([string]$Value)
+    $escaped = [regex]::Replace($Value, '(\\*)"', '$1$1\"')
+    $escaped = [regex]::Replace($escaped, '(\\+)$', '$1$1')
+    return '"' + $escaped + '"'
+}
+
+function Register-KeyManEntry {
+    param([string]$Name, [string]$Service, [string]$Value, [string]$SourcePath)
+
+    $arguments = @('register', $Name, '--stdin', '--skip-existing', '--service', $Service,
+        '--environment', 'Development', '--notes', ('Imported from ' + $SourcePath))
+    $startInfo = New-Object Diagnostics.ProcessStartInfo
+    $startInfo.FileName = $KeyManPath
+    $startInfo.Arguments = ($arguments | ForEach-Object { ConvertTo-NativeArgument $_ }) -join ' '
+    $startInfo.UseShellExecute = $false
+    $startInfo.CreateNoWindow = $true
+    $startInfo.RedirectStandardInput = $true
+    $startInfo.RedirectStandardOutput = $true
+    $startInfo.RedirectStandardError = $true
+    if (-not [string]::IsNullOrWhiteSpace($VaultPath)) {
+        $startInfo.EnvironmentVariables['KEYMAN_VAULT_PATH'] = [IO.Path]::GetFullPath($VaultPath)
     }
 
-    $pointer = [Runtime.InteropServices.Marshal]::StringToCoTaskMemUni($Value)
+    $process = New-Object Diagnostics.Process
+    $process.StartInfo = $startInfo
     try {
-        $credential = New-Object KeyManCredentialNative+Credential
-        $credential.Type = 1
-        $credential.TargetName = $Target
-        $credential.CredentialBlobSize = $blobSize
-        $credential.CredentialBlob = $pointer
-        $credential.Persist = 2
-        $credential.UserName = 'KeyMan'
-
-        if (-not [KeyManCredentialNative]::CredWrite([ref]$credential, 0)) {
-            throw New-Object ComponentModel.Win32Exception(
-                [Runtime.InteropServices.Marshal]::GetLastWin32Error())
+        [void]$process.Start()
+        $outputTask = $process.StandardOutput.ReadToEndAsync()
+        $errorTask = $process.StandardError.ReadToEndAsync()
+        $inputBytes = [Text.Encoding]::UTF8.GetBytes($Value)
+        $process.StandardInput.BaseStream.Write($inputBytes, 0, $inputBytes.Length)
+        $process.StandardInput.Close()
+        $process.WaitForExit()
+        $output = $outputTask.GetAwaiter().GetResult()
+        [void]$errorTask.GetAwaiter().GetResult()
+        if ($process.ExitCode -ne 0) {
+            throw "KeyMan registration failed for '$Name' (exit code $($process.ExitCode)). Earlier successful entries are preserved."
         }
 
-        return $true
+        return $output.StartsWith('Skipped existing:', [StringComparison]::Ordinal)
     }
     finally {
-        [Runtime.InteropServices.Marshal]::ZeroFreeCoTaskMemUnicode($pointer)
+        $process.Dispose()
     }
 }
 
-$vaultDirectory = Join-Path $env:LOCALAPPDATA 'KeyMan'
-$vaultPath = Join-Path $vaultDirectory 'vault.json'
-New-Item -ItemType Directory -Force -Path $vaultDirectory | Out-Null
-
-$entries = @()
-if (Test-Path -LiteralPath $vaultPath) {
-    $parsedEntries = Get-Content -LiteralPath $vaultPath -Encoding UTF8 -Raw | ConvertFrom-Json
-    if ($null -ne $parsedEntries) {
-        $entries = @($parsedEntries)
-    }
-}
-
-$createdTargets = New-Object System.Collections.Generic.List[string]
-$imported = New-Object System.Collections.Generic.List[object]
+$imported = 0
 $skippedDuplicates = 0
 $skippedInvalid = 0
+$envFiles = Get-ChildItem -LiteralPath $RootPath -Recurse -Force -File -Filter '.env' -ErrorAction Stop |
+    Where-Object { $_.FullName -notmatch '\\(node_modules|bin|obj|dist|build|\.git)\\' }
 
-try {
-    $envFiles = Get-ChildItem -LiteralPath $RootPath -Recurse -Force -File -Filter '.env' -ErrorAction SilentlyContinue |
-        Where-Object { $_.FullName -notmatch '\\(node_modules|bin|obj|dist|build|\.git)\\' }
+foreach ($envFile in $envFiles) {
+    $service = Split-Path $envFile.DirectoryName -Leaf
+    foreach ($line in Get-Content -LiteralPath $envFile.FullName -Encoding UTF8) {
+        if ($line -notmatch '^\s*(?:export\s+)?(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*=(?<value>.*)$') {
+            continue
+        }
 
-    foreach ($envFile in $envFiles) {
-        if ($envFile.DirectoryName -eq 'D:\workspace\repositories') {
-            $service = 'workspace'
+        $name = $Matches.name
+        $value = $Matches.value.Trim()
+        if ($value.Length -ge 2 -and
+            (($value.StartsWith('"') -and $value.EndsWith('"')) -or
+             ($value.StartsWith("'") -and $value.EndsWith("'")))) {
+            $value = $value.Substring(1, $value.Length - 2)
+        }
+
+        if ([string]::IsNullOrWhiteSpace($value) -or
+            $value -match '^(?:your_|replace_|change_me|todo|example|placeholder|xxx)' -or
+            [Text.Encoding]::Unicode.GetByteCount($value) -gt 2560) {
+            $skippedInvalid++
+            continue
+        }
+
+        if (Register-KeyManEntry -Name $name -Service $service -Value $value -SourcePath $envFile.FullName) {
+            $skippedDuplicates++
         }
         else {
-            $service = Split-Path $envFile.DirectoryName -Leaf
-        }
-
-        foreach ($line in Get-Content -LiteralPath $envFile.FullName -Encoding UTF8) {
-            if ($line -notmatch '^\s*(?:export\s+)?(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*=(?<value>.*)$') {
-                continue
-            }
-
-            $name = $Matches.name
-            $value = $Matches.value.Trim()
-            if ([string]::IsNullOrWhiteSpace($value) -or
-                $value -match '^(?:"|'')?(?:your_|replace_|change_me|todo|example|placeholder|xxx)') {
-                $skippedInvalid++
-                continue
-            }
-
-            if ($value.Length -ge 2 -and
-                (($value.StartsWith('"') -and $value.EndsWith('"')) -or
-                 ($value.StartsWith("'") -and $value.EndsWith("'")))) {
-                $value = $value.Substring(1, $value.Length - 2)
-            }
-
-            $duplicate = @($entries) |
-                Where-Object {
-                    $_.Name -eq $name -and
-                    $_.Service -eq $service -and
-                    $_.Environment -eq 'Development'
-                } |
-                Select-Object -First 1
-            if ($null -ne $duplicate) {
-                $skippedDuplicates++
-                continue
-            }
-
-            $id = [Guid]::NewGuid()
-            $target = 'KeyMan/' + $id.ToString('N')
-            if (-not (Write-KeyManCredential -Target $target -Value $value)) {
-                $skippedInvalid++
-                continue
-            }
-
-            $createdTargets.Add($target)
-            $entry = [pscustomobject][ordered]@{
-                Id = $id.ToString()
-                Name = $name
-                Service = $service
-                Environment = 'Development'
-                Notes = 'Imported from ' + $envFile.FullName
-                ExpiresOn = $null
-                CreatedAt = [DateTimeOffset]::Now.ToString('o')
-            }
-            $entries += $entry
-            $imported.Add([pscustomobject]@{ Service = $service; Variable = $name })
+            $imported++
         }
     }
-
-    $temporaryPath = $vaultPath + '.tmp'
-    $json = $entries | ConvertTo-Json -Depth 6
-    $utf8WithoutBom = New-Object Text.UTF8Encoding($false)
-    [IO.File]::WriteAllText($temporaryPath, $json, $utf8WithoutBom)
-    Move-Item -LiteralPath $temporaryPath -Destination $vaultPath -Force
-}
-catch {
-    foreach ($target in $createdTargets) {
-        [void][KeyManCredentialNative]::CredDelete($target, 1, 0)
-    }
-    throw
 }
 
-Write-Output ('Imported entries: ' + $imported.Count)
+Write-Output ('Imported entries: ' + $imported)
 Write-Output ('Skipped duplicates: ' + $skippedDuplicates)
 Write-Output ('Skipped empty, placeholder, or oversized values: ' + $skippedInvalid)
-$imported | Sort-Object Service, Variable | Format-Table -AutoSize

@@ -17,6 +17,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private string _statusText = "준비됨";
     private CredentialEntry? _selectedEntry;
     private bool _isEmpty = true;
+    private bool _isLoaded;
 
     public MainViewModel(
         MetadataStore metadataStore,
@@ -32,9 +33,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         EntriesView.Filter = MatchesSearch;
 
         InitializeCommand = new AsyncRelayCommand(InitializeAsync);
-        AddCommand = new AsyncRelayCommand(AddAsync);
+        AddCommand = new AsyncRelayCommand(AddAsync, () => _isLoaded);
         CopyCommand = new AsyncRelayCommand(CopyAsync, () => SelectedEntry is not null);
-        DeleteCommand = new AsyncRelayCommand(DeleteAsync, () => SelectedEntry is not null);
+        DeleteCommand = new AsyncRelayCommand(DeleteAsync, () => _isLoaded && SelectedEntry is not null);
     }
 
     public ObservableCollection<CredentialEntry> Entries { get; } = [];
@@ -88,12 +89,10 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     {
         try
         {
-            foreach (var entry in await _metadataStore.LoadAsync())
-            {
-                Entries.Add(entry);
-            }
-
-            UpdateEmptyState();
+            RefreshEntries(await _metadataStore.LoadAsync());
+            _isLoaded = true;
+            AddCommand.NotifyCanExecuteChanged();
+            DeleteCommand.NotifyCanExecuteChanged();
             StatusText = $"{Entries.Count}개 항목";
         }
         catch (Exception exception)
@@ -104,6 +103,11 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     private async Task AddAsync()
     {
+        if (!_isLoaded)
+        {
+            return;
+        }
+
         var credential = _dialogService.ShowAddCredential();
         if (credential is null)
         {
@@ -112,20 +116,21 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
         try
         {
-            _credentialStore.Save(credential.Entry.Id, credential.Secret);
-            Entries.Add(credential.Entry);
-            try
+            var entries = await _metadataStore.MutateAsync(transaction =>
             {
-                await _metadataStore.SaveAsync(Entries);
-            }
-            catch
-            {
-                Entries.Remove(credential.Entry);
-                _credentialStore.Delete(credential.Entry.Id);
-                throw;
-            }
+                if (transaction.Entries.Any(entry =>
+                    entry.Name.Equals(credential.Entry.Name, StringComparison.CurrentCultureIgnoreCase) &&
+                    entry.Service.Equals(credential.Entry.Service, StringComparison.CurrentCultureIgnoreCase) &&
+                    entry.Environment.Equals(credential.Entry.Environment, StringComparison.CurrentCultureIgnoreCase)))
+                {
+                    throw new InvalidOperationException("같은 이름·서비스·환경의 항목이 이미 있습니다.");
+                }
 
-            UpdateEmptyState();
+                transaction.OnRollback(() => _credentialStore.Delete(credential.Entry.Id));
+                _credentialStore.Save(credential.Entry.Id, credential.Secret);
+                transaction.Entries.Add(credential.Entry);
+            });
+            RefreshEntries(entries);
             StatusText = $"'{credential.Entry.Name}' 저장됨";
         }
         catch (Exception exception)
@@ -145,8 +150,10 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         {
             var secret = _credentialStore.Read(SelectedEntry.Id);
             StatusText = "클립보드에 복사됨 · 30초 후 자동 삭제";
-            await _clipboardService.CopyWithAutoClearAsync(secret, TimeSpan.FromSeconds(30));
-            StatusText = "클립보드에서 민감값을 삭제했습니다.";
+            var cleared = await _clipboardService.CopyWithAutoClearAsync(secret, TimeSpan.FromSeconds(30));
+            StatusText = cleared
+                ? "클립보드에서 민감값을 삭제했습니다."
+                : "클립보드 내용이 바뀌어 그대로 유지했습니다.";
         }
         catch (OperationCanceledException)
         {
@@ -160,27 +167,35 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private async Task DeleteAsync()
     {
         var entry = SelectedEntry;
-        if (entry is null || !_dialogService.ConfirmDelete(entry.Name))
+        if (!_isLoaded || entry is null || !_dialogService.ConfirmDelete(entry.Name))
         {
             return;
         }
 
         try
         {
-            Entries.Remove(entry);
-            try
+            var entries = await _metadataStore.MutateAsync(transaction =>
             {
-                await _metadataStore.SaveAsync(Entries);
-                _credentialStore.Delete(entry.Id);
-            }
-            catch
-            {
-                Entries.Add(entry);
-                await _metadataStore.SaveAsync(Entries);
-                throw;
-            }
+                var current = transaction.Entries.SingleOrDefault(item => item.Id == entry.Id)
+                    ?? throw new InvalidOperationException("다른 작업에서 이미 삭제한 항목입니다. 앱을 다시 열어 목록을 갱신하세요.");
+                string? previousSecret = null;
+                try
+                {
+                    previousSecret = _credentialStore.Read(current.Id);
+                }
+                catch (Win32Exception exception) when (exception.NativeErrorCode == 1168)
+                {
+                }
 
-            UpdateEmptyState();
+                if (previousSecret is not null)
+                {
+                    transaction.OnRollback(() => _credentialStore.Save(current.Id, previousSecret));
+                }
+
+                _credentialStore.Delete(current.Id);
+                transaction.Entries.Remove(current);
+            });
+            RefreshEntries(entries);
             StatusText = $"'{entry.Name}' 삭제됨";
         }
         catch (Exception exception)
@@ -204,6 +219,19 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     }
 
     private void UpdateEmptyState() => IsEmpty = EntriesView.IsEmpty;
+
+    private void RefreshEntries(IReadOnlyList<CredentialEntry> entries)
+    {
+        var selectedId = SelectedEntry?.Id;
+        Entries.Clear();
+        foreach (var entry in entries)
+        {
+            Entries.Add(entry);
+        }
+
+        SelectedEntry = Entries.FirstOrDefault(entry => entry.Id == selectedId);
+        UpdateEmptyState();
+    }
 
     private void ReportError(string message, Exception exception)
     {

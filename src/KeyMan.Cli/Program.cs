@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Text.Json;
 using System.Windows;
 using KeyMan.Models;
@@ -12,6 +13,11 @@ public static class Program
     {
         try
         {
+            if (Console.IsInputRedirected)
+            {
+                Console.InputEncoding = new System.Text.UTF8Encoding(false);
+            }
+
             return new CliApplication(new MetadataStore(), new WindowsCredentialStore()).Run(args);
         }
         catch (Exception exception)
@@ -77,10 +83,15 @@ internal sealed class CliApplication(MetadataStore metadataStore, WindowsCredent
                 valueIndex,
                 out var options,
                 out var optionError,
-                ["stdin", "force"],
+                ["stdin", "force", "skip-existing"],
                 ["service", "environment", "expires", "notes"]))
         {
             return Fail(optionError, UsageError);
+        }
+
+        if (options.ContainsKey("force") && options.ContainsKey("skip-existing"))
+        {
+            return Fail("--force and --skip-existing cannot be combined.", UsageError);
         }
 
         var service = (options.GetValueOrDefault("service") ?? "General").Trim();
@@ -108,65 +119,51 @@ internal sealed class CliApplication(MetadataStore metadataStore, WindowsCredent
             return Fail("A non-empty token is required.", UsageError);
         }
 
-        var entries = metadataStore.LoadAsync().GetAwaiter().GetResult().ToList();
-        var existing = entries.SingleOrDefault(entry =>
-            entry.Name.Equals(name, StringComparison.CurrentCultureIgnoreCase) &&
-            entry.Service.Equals(service, StringComparison.CurrentCultureIgnoreCase) &&
-            entry.Environment.Equals(environment, StringComparison.CurrentCultureIgnoreCase));
-
-        if (existing is not null && !options.ContainsKey("force"))
+        var outcome = "Registered";
+        metadataStore.MutateAsync(transaction =>
         {
-            return Fail("An entry with the same name, service, and environment already exists. Use --force to replace it.", UsageError);
-        }
-
-        if (existing is not null)
-        {
-            var previousSecret = credentialStore.Read(existing.Id);
-            var previousNotes = existing.Notes;
-            var previousExpiration = existing.ExpiresOn;
-            try
+            var existing = transaction.Entries.SingleOrDefault(entry =>
+                entry.Name.Equals(name, StringComparison.CurrentCultureIgnoreCase) &&
+                entry.Service.Equals(service, StringComparison.CurrentCultureIgnoreCase) &&
+                entry.Environment.Equals(environment, StringComparison.CurrentCultureIgnoreCase));
+            if (existing is not null)
             {
+                if (options.ContainsKey("skip-existing"))
+                {
+                    outcome = "Skipped existing";
+                    return;
+                }
+
+                if (!options.ContainsKey("force"))
+                {
+                    throw new InvalidOperationException("An entry with the same name, service, and environment already exists. Use --force to replace it.");
+                }
+
+                var previousSecret = credentialStore.Read(existing.Id);
+                transaction.OnRollback(() => credentialStore.Save(existing.Id, previousSecret));
                 credentialStore.Save(existing.Id, secret);
                 existing.Notes = notes;
                 existing.ExpiresOn = expiresOn;
-                metadataStore.SaveAsync(entries).GetAwaiter().GetResult();
+                outcome = "Updated";
+                return;
             }
-            catch
+
+            var entry = new CredentialEntry
             {
-                credentialStore.Save(existing.Id, previousSecret);
-                existing.Notes = previousNotes;
-                existing.ExpiresOn = previousExpiration;
-                throw;
-            }
+                Id = Guid.NewGuid(),
+                Name = name,
+                Service = service,
+                Environment = environment,
+                Notes = notes,
+                ExpiresOn = expiresOn,
+                CreatedAt = DateTimeOffset.Now
+            };
+            transaction.OnRollback(() => credentialStore.Delete(entry.Id));
+            credentialStore.Save(entry.Id, secret);
+            transaction.Entries.Add(entry);
+        }).GetAwaiter().GetResult();
 
-            Console.WriteLine($"Updated: {existing.Name} [{existing.Service}/{existing.Environment}]");
-            return 0;
-        }
-
-        var entry = new CredentialEntry
-        {
-            Id = Guid.NewGuid(),
-            Name = name,
-            Service = service,
-            Environment = environment,
-            Notes = notes,
-            ExpiresOn = expiresOn,
-            CreatedAt = DateTimeOffset.Now
-        };
-
-        credentialStore.Save(entry.Id, secret);
-        entries.Add(entry);
-        try
-        {
-            metadataStore.SaveAsync(entries).GetAwaiter().GetResult();
-        }
-        catch
-        {
-            credentialStore.Delete(entry.Id);
-            throw;
-        }
-
-        Console.WriteLine($"Registered: {entry.Name} [{entry.Service}/{entry.Environment}]");
+        Console.WriteLine($"{outcome}: {name} [{service}/{environment}]");
         return 0;
     }
 
@@ -252,22 +249,29 @@ internal sealed class CliApplication(MetadataStore metadataStore, WindowsCredent
             }
         }
 
-        var entries = metadataStore.LoadAsync().GetAwaiter().GetResult().ToList();
-        var entry = entries.Single(item => item.Id == result.Entry!.Id);
-        entries.Remove(entry);
-        metadataStore.SaveAsync(entries).GetAwaiter().GetResult();
-        try
+        metadataStore.MutateAsync(transaction =>
         {
-            credentialStore.Delete(entry.Id);
-        }
-        catch
-        {
-            entries.Add(entry);
-            metadataStore.SaveAsync(entries).GetAwaiter().GetResult();
-            throw;
-        }
+            var entry = transaction.Entries.SingleOrDefault(item => item.Id == result.Entry!.Id)
+                ?? throw new InvalidOperationException("This entry was already removed by another operation.");
+            string? previousSecret = null;
+            try
+            {
+                previousSecret = credentialStore.Read(entry.Id);
+            }
+            catch (Win32Exception exception) when (exception.NativeErrorCode == 1168)
+            {
+            }
 
-        Console.WriteLine($"Removed: {entry.Name}");
+            if (previousSecret is not null)
+            {
+                transaction.OnRollback(() => credentialStore.Save(entry.Id, previousSecret));
+            }
+
+            credentialStore.Delete(entry.Id);
+            transaction.Entries.Remove(entry);
+        }).GetAwaiter().GetResult();
+
+        Console.WriteLine($"Removed: {result.Entry!.Name}");
         return 0;
     }
 
@@ -439,6 +443,7 @@ internal sealed class CliApplication(MetadataStore metadataStore, WindowsCredent
         Console.WriteLine("  --expires <YYYY-MM-DD>     Optional expiration date");
         Console.WriteLine("  --notes <text>             Optional non-sensitive notes");
         Console.WriteLine("  --force                    Replace an existing matching entry");
+        Console.WriteLine("  --skip-existing            Keep an existing matching entry unchanged");
     }
 
     private sealed record ResolveResult(

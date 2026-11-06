@@ -1,0 +1,24 @@
+[
+  {
+    "repository": "https://github.com/modelcontextprotocol/csharp-sdk",
+    "commit": "2ce15f4c8af7d1d8c3f3bc141a7cd0830d3dddfb",
+    "file": "ModelContextProtocol-1.3.0-LICENSE",
+    "noticeFile": "ModelContextProtocol-1.3.0-THIRD-PARTY-NOTICES.txt",
+    "noticeSource": "https://raw.githubusercontent.com/modelcontextprotocol/csharp-sdk/2ce15f4c8af7d1d8c3f3bc141a7cd0830d3dddfb/THIRD-PARTY-NOTICES.txt",
+    "source": "https://raw.githubusercontent.com/modelcontextprotocol/csharp-sdk/2ce15f4c8af7d1d8c3f3bc141a7cd0830d3dddfb/LICENSE"
+  },
+  {
+    "repository": "https://github.com/dotnet/extensions",
+    "commit": "2a86d759c251eee39274c191bd9f8e14c58f875a",
+    "file": "Microsoft.Extensions.AI.Abstractions-10.5.2-LICENSE",
+    "noticeFile": "Microsoft.Extensions.AI.Abstractions-10.5.2-THIRD-PARTY-NOTICES.TXT",
+    "noticeSource": "https://raw.githubusercontent.com/dotnet/extensions/2a86d759c251eee39274c191bd9f8e14c58f875a/THIRD-PARTY-NOTICES.TXT",
+    "source": "https://raw.githubusercontent.com/dotnet/extensions/2a86d759c251eee39274c191bd9f8e14c58f875a/LICENSE"
+  },
+  {
+    "repository": "https://github.com/dotnet/dotnet",
+    "commit": "b16286c2284fecf303dbc12a0bb152476d662e44",
+    "file": "Microsoft.Extensions-10.0.7-LICENSE.TXT",
+    "source": "https://raw.githubusercontent.com/dotnet/dotnet/b16286c2284fecf303dbc12a0bb152476d662e44/LICENSE.TXT"
+  }
+]
